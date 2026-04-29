@@ -4,7 +4,7 @@ import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
 import javax.inject.Inject
 
-class CompareEcgUseCase @Inject constructor() {
+class CompareEcgUseCase @Inject constructor(    ) {
     suspend operator fun invoke(ecg1: EcgRecord, ecg2: EcgRecord): ComparisonResult {
         /**
          * TODO: Implement comparison logic between two ECG records
