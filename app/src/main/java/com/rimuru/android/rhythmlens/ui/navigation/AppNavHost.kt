@@ -2,13 +2,12 @@ package com.rimuru.android.rhythmlens.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import kotlinx.serialization.Serializable
-import androidx.navigation.compose.composable
-import com.rimuru.android.rhythmlens.ui.screens.home.HomeScreen
-import com.rimuru.android.rhythmlens.ui.screens.history.HistoryScreen
 import com.rimuru.android.rhythmlens.ui.screens.ecg.EcgDetailScreen
+import com.rimuru.android.rhythmlens.ui.screens.history.HistoryScreen
+import com.rimuru.android.rhythmlens.ui.screens.home.HomeScreen
 
 @Composable
 fun AppNavHost() {
@@ -18,10 +17,10 @@ fun AppNavHost() {
         navController = navController,
         startDestination = BottomNavDestination.Home
     ) {
-        // Bottom Navigation граф
+        // Главные экраны с Bottom Navigation
         bottomNavGraph(navController)
 
-        // Детальные экраны
+        // Детальные полноэкранные экраны
         composable<EcgDetailDestination> { backStackEntry ->
             val destination: EcgDetailDestination = backStackEntry.toRoute()
             EcgDetailScreen(
@@ -30,8 +29,18 @@ fun AppNavHost() {
             )
         }
 
-        composable<ComparisonDestination> { /* позже */ }
-        composable<ScanDestination> { /* позже */ }
-        composable<SyntheticImageDestination> { /* позже */ }
+        composable<ComparisonDestination> { backStackEntry ->
+            val destination: ComparisonDestination = backStackEntry.toRoute()
+            // ComparisonScreen(destination.ecgIds) — позже
+        }
+
+        composable<ScanDestination> {
+            // ScanScreen() — позже
+        }
+
+        composable<SyntheticImageDestination> { backStackEntry ->
+            val destination: SyntheticImageDestination = backStackEntry.toRoute()
+            // SyntheticImageScreen(destination.ecgId) — позже
+        }
     }
 }
