@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import kotlinx.serialization.Serializable
+import androidx.navigation.compose.composable
 import com.rimuru.android.rhythmlens.ui.screens.home.HomeScreen
 import com.rimuru.android.rhythmlens.ui.screens.history.HistoryScreen
 import com.rimuru.android.rhythmlens.ui.screens.ecg.EcgDetailScreen
