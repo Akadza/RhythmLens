@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    modifier: Modifier = Modifier,
     onScanClick: () -> Unit,           // для камеры
     onGalleryClick: () -> Unit,        // для галереи
     onImportClick: () -> Unit          // для импорта файла
@@ -23,6 +24,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
 
     Scaffold(
+        modifier = modifier,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { scope.launch { sheetState.show() } },

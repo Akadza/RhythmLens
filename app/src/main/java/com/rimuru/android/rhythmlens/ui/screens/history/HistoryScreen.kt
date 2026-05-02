@@ -19,10 +19,12 @@ import com.rimuru.android.rhythmlens.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
+    modifier: Modifier = Modifier,
     onEcgClick: (String) -> Unit,
     onCompareClick: (List<String>) -> Unit
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.history)) }

@@ -5,6 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.rimuru.android.rhythmlens.ui.screens.MainScreen
 import com.rimuru.android.rhythmlens.ui.screens.ecg.EcgDetailScreen
 import com.rimuru.android.rhythmlens.ui.screens.history.HistoryScreen
 import com.rimuru.android.rhythmlens.ui.screens.home.HomeScreen
@@ -17,8 +18,11 @@ fun AppNavHost() {
         navController = navController,
         startDestination = BottomNavDestination.Home
     ) {
-        // Главные экраны с Bottom Navigation
-        bottomNavGraph(navController)
+
+        composable<BottomNavDestination.Home> { MainScreen(navController) }
+        composable<BottomNavDestination.History> { MainScreen(navController) }
+        composable<BottomNavDestination.Patients> { MainScreen(navController) }
+        composable<BottomNavDestination.Profile> { MainScreen(navController) }
 
         // Детальные полноэкранные экраны
         composable<EcgDetailDestination> { backStackEntry ->
