@@ -1,3 +1,17 @@
 <resources>
     <string name="app_name">RhythmLens</string>
+    <string name="slogan">Оцифровка ЭКГ с помощью ИИ</string>
+    <string name="add_ecg">Добавить ЭКГ</string>
+
+    <!-- History -->
+    <string name="history">История</string>
+    <string name="no_ecg_yet">Пока нет записей ЭКГ</string>
+
+    <!-- ECG Detail -->
+    <string name="ai_analysis">Анализ ИИ</string>
+    <string name="leads_12">12 отведений</string>
+    <string name="compare">Сравнить</string>
+    <string name="generate_synthetic">Сгенерировать синтетику</string>
+    <string name="export">Экспорт</string>
+    <string name="doctor_conclusion">Заключение врача</string>
 </resources>
