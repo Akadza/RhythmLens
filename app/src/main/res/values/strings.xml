@@ -1,10 +1,11 @@
 <resources>
     <string name="app_name">RhythmLens</string>
-    <string name="slogan">Оцифровка ЭКГ с помощью ИИ</string>
+    <string name="slogan">Умный анализ ЭКГ в вашем кармане</string>
     <string name="add_ecg">Добавить ЭКГ</string>
     <string name="home">Главная</string>
     <string name="patients">Пациенты</string>
     <string name="profile">Профиль</string>
+
 
     <!-- History -->
     <string name="history">История</string>
@@ -19,5 +20,10 @@
     <string name="doctor_conclusion">Заключение врача</string>
     <string name="ai_main_diagnosis">Основной диагноз</string>
     <string name="ai_all_diagnoses">Все диагнозы</string>
+
+    <string name="how_to_add_ecg">Как добавить ЭКГ?</string>
+    <string name="action_scan">Сфотографировать ЭКГ</string>
+    <string name="action_gallery">Выбрать из галереи</string>
+    <string name="action_import">Импорт данных</string>
 
 </resources>

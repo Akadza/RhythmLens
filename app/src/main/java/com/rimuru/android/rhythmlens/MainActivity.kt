@@ -3,10 +3,12 @@ package com.rimuru.android.rhythmlens
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import com.rimuru.android.rhythmlens.ui.navigation.AppNavHost
 import com.rimuru.android.rhythmlens.ui.theme.RhythmLensTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -15,6 +17,8 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             RhythmLensTheme {
                 Surface(
