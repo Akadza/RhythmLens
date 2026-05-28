@@ -1,29 +1,108 @@
 <resources>
     <string name="app_name">RhythmLens</string>
-    <string name="slogan">Умный анализ ЭКГ в вашем кармане</string>
-    <string name="add_ecg">Добавить ЭКГ</string>
+
     <string name="home">Главная</string>
+    <string name="history">История</string>
     <string name="patients">Пациенты</string>
     <string name="profile">Профиль</string>
 
-
-    <!-- History -->
-    <string name="history">История</string>
-    <string name="no_ecg_yet">Пока нет записей ЭКГ</string>
-
-    <!-- ECG Detail -->
-    <string name="ai_analysis">Анализ ИИ</string>
-    <string name="leads_12">12 отведений</string>
+    <string name="back">Назад</string>
+    <string name="more">Ещё</string>
     <string name="compare">Сравнить</string>
-    <string name="generate_synthetic">Сгенерировать синтетику</string>
     <string name="export">Экспорт</string>
+    <string name="delete_record">Удалить запись</string>
+
+    <string name="screen_comparison">Сравнение ЭКГ</string>
+    <string name="screen_scan">Съёмка ЭКГ</string>
+    <string name="screen_synthetic_ecg">Синтетическая ЭКГ</string>
+    <string name="screen_export">Экспорт</string>
+    <string name="placeholder_screen_template">%1$s\nЭкран будет реализован позже</string>
+
+    <string name="add_ecg">Добавить ЭКГ</string>
+    <string name="home_greeting_template">Здравствуйте, %1$s</string>
+    <string name="home_description">Загрузите ЭКГ для оцифровки, восстановления и ИИ-анализа.</string>
+    <string name="home_add_hint">Нажмите +, чтобы сфотографировать ЭКГ, выбрать изображение из галереи или импортировать цифровой файл.</string>
+    <string name="last_ecg">Последняя ЭКГ</string>
+    <string name="last_ecg_empty">ЭКГ ещё не загружались.</string>
+    <string name="records_count">Записей</string>
+    <string name="doctors_count">Врачей</string>
+    <string name="add_ecg_description">Выберите источник данных. PDF используется только для экспорта отчёта, не для импорта.</string>
+    <string name="take_photo">Сделать фото</string>
+    <string name="choose_from_gallery">Выбрать из галереи</string>
+    <string name="import_file">Импортировать CSV / WFDB / ZIP</string>
+
+    <string name="history_error_title">Не удалось загрузить историю</string>
+    <string name="history_empty_title">История пуста</string>
+    <string name="history_empty_body">Добавьте первую ЭКГ с главного экрана.</string>
+    <string name="two_line_message_template">%1$s\n%2$s</string>
+
+    <string name="status_processed">Анализ выполнен</string>
+    <string name="status_processing">В обработке</string>
+    <string name="status_error">Ошибка обработки</string>
+
+    <string name="result_probability_template">%1$s · %2$d%%</string>
+    <string name="signal_origin_template">%1$d оцифровано · %2$d восстановлено</string>
+    <string name="percent_template">%1$d%%</string>
+
+    <string name="ecg_detail_title_template">ЭКГ · %1$s</string>
+    <string name="ai_analysis_result">Результат ИИ-анализа</string>
+    <string name="ai_result_requires_review">Результат требует проверки специалистом.</string>
+    <string name="top_probable_classes">Наиболее вероятные классы</string>
+
+    <string name="signal_data">Данные сигнала</string>
+    <string name="signal_format">Формат</string>
+    <string name="signal_format_12_leads">12 отведений</string>
+    <string name="signal_duration">Длительность</string>
+    <string name="signal_sampling_rate">Частота дискретизации</string>
+    <string name="signal_digitized">Оцифровано</string>
+    <string name="signal_reconstructed">Восстановлено</string>
+    <string name="signal_source">Источник</string>
+    <string name="signal_quality">Качество</string>
+    <string name="leads_count_template">%1$d отведений</string>
+
+    <string name="signal_mode_full">Полный сигнал</string>
+    <string name="signal_mode_digitized_only">Только оцифрованное</string>
+    <string name="signal_mode_full_description">Показан итоговый сигнал, используемый для ИИ-анализа.</string>
+    <string name="signal_mode_digitized_description">Показаны только данные, извлечённые с исходного изображения.</string>
+
+    <string name="twelve_leads">12 отведений</string>
+    <string name="lead_chart_placeholder_template">Мини-график отведения %1$s</string>
+    <string name="lead_origin_digitized">оцифровано</string>
+    <string name="lead_origin_reconstructed">восстановлено</string>
+    <string name="lead_origin_mixed">частично</string>
+
+    <string name="synthetic_ecg">Синтетическая ЭКГ</string>
     <string name="doctor_conclusion">Заключение врача</string>
-    <string name="ai_main_diagnosis">Основной диагноз</string>
-    <string name="ai_all_diagnoses">Все диагнозы</string>
+    <string name="doctor_conclusion_empty">Заключение пока не добавлено. Для роли врача здесь будет доступно создание PDF-отчёта.</string>
 
-    <string name="how_to_add_ecg">Как добавить ЭКГ?</string>
-    <string name="action_scan">Сфотографировать ЭКГ</string>
-    <string name="action_gallery">Выбрать из галереи</string>
-    <string name="action_import">Импорт данных</string>
+    <string name="lead_i">I</string>
+    <string name="lead_ii">II</string>
+    <string name="lead_iii">III</string>
+    <string name="lead_avr">aVR</string>
+    <string name="lead_avl">aVL</string>
+    <string name="lead_avf">aVF</string>
+    <string name="lead_v1">V1</string>
+    <string name="lead_v2">V2</string>
+    <string name="lead_v3">V3</string>
+    <string name="lead_v4">V4</string>
+    <string name="lead_v5">V5</string>
+    <string name="lead_v6">V6</string>
 
+    <string name="sample_user_name">Александр</string>
+    <string name="sample_patient_name">Иванов Иван Иванович</string>
+    <string name="sample_date_1">02.05.2026 14:52</string>
+    <string name="sample_date_2">28.04.2026 10:15</string>
+    <string name="sample_date_3">20.04.2026 18:40</string>
+
+    <string name="sample_result_afib">Фибрилляция предсердий</string>
+    <string name="sample_result_normal">Норма</string>
+    <string name="sample_result_st_changes">ST-изменения</string>
+    <string name="sample_result_rbbb">БПНПГ</string>
+    <string name="sample_result_infarction">Инфаркт</string>
+    <string name="sample_code_afib">AFIB</string>
+
+    <string name="sample_duration_10s">10 с</string>
+    <string name="sample_sampling_rate_500hz">500 Гц</string>
+    <string name="source_photo">Фото</string>
+    <string name="quality_medium">среднее</string>
 </resources>
