@@ -2,9 +2,12 @@ package com.rimuru.android.rhythmlens.ui.navigation
 
 import kotlinx.serialization.Serializable
 
-// Top-level destinations (для Bottom Navigation)
+@Serializable
+data object MainDestination
+
 @Serializable
 sealed class BottomNavDestination {
+
     @Serializable
     data object Home : BottomNavDestination()
 
@@ -12,21 +15,32 @@ sealed class BottomNavDestination {
     data object History : BottomNavDestination()
 
     @Serializable
-    data object Patients : BottomNavDestination()   // только для врача
+    data object Patients : BottomNavDestination()
 
     @Serializable
     data object Profile : BottomNavDestination()
 }
 
-// Детальные экраны
 @Serializable
-data class EcgDetailDestination(val ecgId: String)
+data class EcgDetailDestination(
+    val ecgId: String
+)
 
 @Serializable
-data class ComparisonDestination(val ecgIds: List<String>)
+data class ComparisonDestination(
+    val baseEcgId: String,
+    val comparedEcgId: String? = null
+)
 
 @Serializable
-object ScanDestination
+data object ScanDestination
 
 @Serializable
-data class SyntheticImageDestination(val ecgId: String)
+data class SyntheticImageDestination(
+    val ecgId: String
+)
+
+@Serializable
+data class ExportDestination(
+    val ecgId: String
+)
