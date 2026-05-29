@@ -1,4 +1,4 @@
-package com.rimuru.android.rhythmlens.ui.screens.history
+package com.rimuru.android.rhythmlens.ui.app.features.history
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,18 +22,12 @@ import androidx.compose.ui.text.style.TextAlign
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
-data class HistoryUiState(
-    val isLoading: Boolean = false,
-    val items: List<EcgHistoryItemUi>,
-    val errorMessage: String? = null
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    modifier: Modifier = Modifier,
-    state: HistoryUiState = sampleHistoryState(),
-    onEcgClick: (String) -> Unit
+    state: HistoryUiState,
+    onEvent: (HistoryEvent) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
@@ -51,6 +45,14 @@ fun HistoryScreen(
         }
     ) { innerPadding ->
         when {
+            state.isLoading -> {
+                CenterMessage(
+                    modifier = Modifier.padding(innerPadding),
+                    title = stringResource(R.string.history),
+                    body = "Загрузка истории ЭКГ"
+                )
+            }
+
             state.errorMessage != null -> {
                 CenterMessage(
                     modifier = Modifier.padding(innerPadding),
@@ -82,7 +84,7 @@ fun HistoryScreen(
                         EcgListItem(
                             item = item,
                             onClick = {
-                                onEcgClick(item.id)
+                                onEvent(HistoryEvent.EcgClicked(item.id))
                             }
                         )
                     }
@@ -110,42 +112,4 @@ private fun CenterMessage(
             textAlign = TextAlign.Center
         )
     }
-}
-
-@Composable
-private fun sampleHistoryState(): HistoryUiState {
-    return HistoryUiState(
-        items = listOf(
-            EcgHistoryItemUi(
-                id = "ecg-1",
-                date = stringResource(R.string.sample_date_1),
-                patientName = stringResource(R.string.sample_patient_name),
-                mainResult = stringResource(R.string.sample_result_afib),
-                probability = 50,
-                digitizedLeads = 8,
-                reconstructedLeads = 4,
-                status = EcgProcessingStatusUi.Processed
-            ),
-            EcgHistoryItemUi(
-                id = "ecg-2",
-                date = stringResource(R.string.sample_date_2),
-                patientName = stringResource(R.string.sample_patient_name),
-                mainResult = stringResource(R.string.sample_result_normal),
-                probability = 72,
-                digitizedLeads = 12,
-                reconstructedLeads = 0,
-                status = EcgProcessingStatusUi.Processed
-            ),
-            EcgHistoryItemUi(
-                id = "ecg-3",
-                date = stringResource(R.string.sample_date_3),
-                patientName = stringResource(R.string.sample_patient_name),
-                mainResult = stringResource(R.string.sample_result_st_changes),
-                probability = 31,
-                digitizedLeads = 6,
-                reconstructedLeads = 6,
-                status = EcgProcessingStatusUi.Processed
-            )
-        )
-    )
 }
