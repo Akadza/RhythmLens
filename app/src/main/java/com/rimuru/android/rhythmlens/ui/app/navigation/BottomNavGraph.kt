@@ -13,8 +13,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.rimuru.android.rhythmlens.R
+import com.rimuru.android.rhythmlens.ui.app.features.home.HomeRoute
 import com.rimuru.android.rhythmlens.ui.screens.history.HistoryScreen
-import com.rimuru.android.rhythmlens.ui.screens.home.HomeRoute
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
 fun NavGraphBuilder.bottomNavGraph(
