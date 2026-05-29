@@ -49,9 +49,6 @@ fun AppNavHost() {
                 },
                 onOpenDoctorConclusion = {
                     // TODO: открыть экран или диалог заключения врача
-                },
-                onConfirmDelete = {
-                    // TODO: показать confirmation dialog удаления записи
                 }
             )
         }
