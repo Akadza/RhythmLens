@@ -3,6 +3,7 @@ package com.rimuru.android.rhythmlens.ui.app.features.ecgdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rimuru.android.rhythmlens.ui.screens.ecg.EcgDetailScreen
 
 @Composable
 fun EcgDetailRoute(
