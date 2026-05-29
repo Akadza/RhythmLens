@@ -10,6 +10,7 @@ import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.usecase.SaveEcgUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -59,9 +60,49 @@ class ScanViewModel @Inject constructor(
             }
 
             runCatching {
-                val record = buildTestEcgRecord()
-                saveEcgUseCase(record)
-                record
+                val record = buildInitialTestEcgRecord()
+
+                saveEcgUseCase(
+                    record.copy(
+                        status = EcgStatus.UPLOADING,
+                        processingMessage = "Загрузка изображения"
+                    )
+                )
+                delay(PROCESSING_STEP_DELAY_MS)
+
+                saveEcgUseCase(
+                    record.copy(
+                        status = EcgStatus.DIGITIZING,
+                        processingMessage = "Оцифровка ЭКГ"
+                    )
+                )
+                delay(PROCESSING_STEP_DELAY_MS)
+
+                saveEcgUseCase(
+                    record.copy(
+                        status = EcgStatus.COMPLETING,
+                        processingMessage = "Восстановление недостающих отведений"
+                    )
+                )
+                delay(PROCESSING_STEP_DELAY_MS)
+
+                saveEcgUseCase(
+                    record.copy(
+                        status = EcgStatus.ANALYZING,
+                        processingMessage = "ИИ-анализ ЭКГ"
+                    )
+                )
+                delay(PROCESSING_STEP_DELAY_MS)
+
+                val processedRecord = record.copy(
+                    digitizedSignal = buildTestDigitizedEcg(),
+                    heartRate = 72,
+                    status = EcgStatus.PROCESSED,
+                    processingMessage = null,
+                    errorMessage = null
+                )
+                saveEcgUseCase(processedRecord)
+                processedRecord
             }.onSuccess { record ->
                 _uiState.update { state ->
                     state.copy(isProcessing = false)
@@ -78,17 +119,17 @@ class ScanViewModel @Inject constructor(
         }
     }
 
-    private fun buildTestEcgRecord(): EcgRecord {
-        val id = UUID.randomUUID().toString()
-
+    private fun buildInitialTestEcgRecord(): EcgRecord {
         return EcgRecord(
-            id = id,
+            id = UUID.randomUUID().toString(),
             patientId = DEFAULT_PATIENT_ID,
             recordedAt = Instant.now(),
             originalImageUrl = null,
-            digitizedSignal = buildTestDigitizedEcg(),
-            heartRate = 72,
-            status = EcgStatus.PROCESSED
+            digitizedSignal = null,
+            heartRate = null,
+            status = EcgStatus.DRAFT,
+            processingMessage = null,
+            errorMessage = null
         )
     }
 
@@ -126,5 +167,6 @@ class ScanViewModel @Inject constructor(
         const val SAMPLING_RATE = 500
         const val DURATION_SECONDS = 10.0
         const val HEART_RATE_HZ = 1.2
+        const val PROCESSING_STEP_DELAY_MS = 700L
     }
 }
