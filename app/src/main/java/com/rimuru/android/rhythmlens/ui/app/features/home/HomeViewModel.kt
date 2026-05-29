@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rimuru.android.rhythmlens.domain.model.DigitizedEcg
 import com.rimuru.android.rhythmlens.domain.model.EcgLead
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
 import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
@@ -117,36 +118,16 @@ class HomeViewModel @Inject constructor(
             runCatching {
                 val record = buildInitialTestEcgRecord()
 
-                saveEcgUseCase(
-                    record.copy(
-                        status = EcgStatus.UPLOADING,
-                        processingMessage = null
-                    )
-                )
+                saveEcgUseCase(record.copy(status = EcgStatus.UPLOADING))
                 delay(PROCESSING_STEP_DELAY_MS)
 
-                saveEcgUseCase(
-                    record.copy(
-                        status = EcgStatus.DIGITIZING,
-                        processingMessage = null
-                    )
-                )
+                saveEcgUseCase(record.copy(status = EcgStatus.DIGITIZING))
                 delay(PROCESSING_STEP_DELAY_MS)
 
-                saveEcgUseCase(
-                    record.copy(
-                        status = EcgStatus.COMPLETING,
-                        processingMessage = null
-                    )
-                )
+                saveEcgUseCase(record.copy(status = EcgStatus.COMPLETING))
                 delay(PROCESSING_STEP_DELAY_MS)
 
-                saveEcgUseCase(
-                    record.copy(
-                        status = EcgStatus.ANALYZING,
-                        processingMessage = null
-                    )
-                )
+                saveEcgUseCase(record.copy(status = EcgStatus.ANALYZING))
                 delay(PROCESSING_STEP_DELAY_MS)
 
                 val processedRecord = record.copy(
@@ -183,8 +164,12 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun EcgRecord.toLastEcgUi(): LastEcgUi {
-        val digitizedLeads = digitizedSignal?.leads?.size ?: 0
-        val reconstructedLeads = (STANDARD_LEAD_COUNT - digitizedLeads).coerceAtLeast(0)
+        val digitizedLeads = digitizedSignal?.leadOrigins
+            ?.count { (_, origin) -> origin == EcgLeadOrigin.DIGITIZED || origin == EcgLeadOrigin.MIXED }
+            ?: 0
+        val reconstructedLeads = digitizedSignal?.leadOrigins
+            ?.count { (_, origin) -> origin == EcgLeadOrigin.RECONSTRUCTED || origin == EcgLeadOrigin.MIXED }
+            ?: 0
         val statusText = processingMessage ?: status.toDisplayText()
 
         return LastEcgUi(
@@ -219,9 +204,17 @@ class HomeViewModel @Inject constructor(
         val leads = EcgLead.entries.associateWith { lead ->
             buildSyntheticLead(lead)
         }
+        val leadOrigins = EcgLead.entries.associateWith { lead ->
+            if (lead in RECONSTRUCTED_TEST_LEADS) {
+                EcgLeadOrigin.RECONSTRUCTED
+            } else {
+                EcgLeadOrigin.DIGITIZED
+            }
+        }
 
         return DigitizedEcg(
             leads = leads,
+            leadOrigins = leadOrigins,
             samplingRate = SAMPLING_RATE,
             durationSeconds = DURATION_SECONDS
         )
@@ -258,11 +251,11 @@ class HomeViewModel @Inject constructor(
 
     private companion object {
         const val DEFAULT_PATIENT_ID = "temp-patient-id"
-        const val STANDARD_LEAD_COUNT = 12
         const val SAMPLING_RATE = 500
         const val DURATION_SECONDS = 10.0
         const val HEART_RATE_HZ = 1.2
         const val PROCESSING_STEP_DELAY_MS = 700L
+        val RECONSTRUCTED_TEST_LEADS = setOf(EcgLead.V3, EcgLead.V4, EcgLead.V5, EcgLead.V6)
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
