@@ -11,9 +11,11 @@ data class EcgRecordEntity(
     val patientId: String,
     val recordedAt: Instant,
     val originalImageUrl: String?,
-    val digitizedSignalJson: String,      // храним как JSON-строку
+    val digitizedSignalJson: String,
     val heartRate: Int?,
-    val status: String,                   // "PENDING", "PROCESSED", "ERROR"
+    val status: String,
+    val processingMessage: String?,
+    val errorMessage: String?,
     val doctorId: String?,
     val createdAt: Instant = Instant.now()
 )
