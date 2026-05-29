@@ -33,6 +33,10 @@
     <string name="choose_from_gallery">Выбрать из галереи</string>
     <string name="import_file">Импортировать CSV / WFDB / ZIP</string>
 
+    <string name="scan_description">Создайте тестовую запись или выберите источник изображения ЭКГ. Камера и галерея будут подключены к этому же экрану.</string>
+    <string name="create_test_ecg">Создать тестовую ЭКГ</string>
+    <string name="processing">Обработка…</string>
+
     <string name="history_error_title">Не удалось загрузить историю</string>
     <string name="history_empty_title">История пуста</string>
     <string name="history_empty_body">Добавьте первую ЭКГ с главного экрана.</string>
