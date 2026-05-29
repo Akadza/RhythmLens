@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.rimuru.android.rhythmlens.domain.model.EcgLead
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.usecase.DeleteEcgUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgByIdUseCase
@@ -140,7 +141,12 @@ class EcgDetailViewModel @Inject constructor(
 
     private fun EcgRecord.toUiState(previousState: EcgDetailUiState): EcgDetailUiState {
         val fallback = sampleInitialState(id)
-        val digitizedLeads = digitizedSignal?.leads?.size ?: fallback.signalInfo.digitizedLeads
+        val digitizedLeads = digitizedSignal?.leadOrigins
+            ?.count { (_, origin) -> origin == EcgLeadOrigin.DIGITIZED || origin == EcgLeadOrigin.MIXED }
+            ?: fallback.signalInfo.digitizedLeads
+        val reconstructedLeads = digitizedSignal?.leadOrigins
+            ?.count { (_, origin) -> origin == EcgLeadOrigin.RECONSTRUCTED || origin == EcgLeadOrigin.MIXED }
+            ?: fallback.signalInfo.reconstructedLeads
         val duration = digitizedSignal?.durationSeconds?.let { durationSeconds ->
             "$durationSeconds с"
         } ?: fallback.signalInfo.duration
@@ -155,7 +161,7 @@ class EcgDetailViewModel @Inject constructor(
                 duration = duration,
                 samplingRate = samplingRate,
                 digitizedLeads = digitizedLeads,
-                reconstructedLeads = STANDARD_LEAD_COUNT - digitizedLeads
+                reconstructedLeads = reconstructedLeads
             ),
             leads = buildLeadSummaryList(this),
             isLoading = false,
@@ -167,22 +173,40 @@ class EcgDetailViewModel @Inject constructor(
     }
 
     private fun buildLeadSummaryList(record: EcgRecord): List<LeadSummaryUi> {
-        val availableLeads = record.digitizedSignal?.leads?.keys.orEmpty()
+        val signal = record.digitizedSignal
 
         return EcgLead.entries.map { lead ->
+            val origin = signal?.leadOrigins?.get(lead)?.toUiOrigin()
+                ?: if (signal == null) fallbackOriginForLead(lead) else LeadOriginUi.Reconstructed
+
             LeadSummaryUi(
                 name = lead.name,
-                origin = when {
-                    availableLeads.isEmpty() -> LeadOriginUi.Digitized
-                    lead in availableLeads -> LeadOriginUi.Digitized
-                    else -> LeadOriginUi.Reconstructed
-                }
+                origin = origin,
+                points = signal?.leads?.get(lead).orEmpty()
             )
         }
     }
 
+    private fun EcgLeadOrigin.toUiOrigin(): LeadOriginUi {
+        return when (this) {
+            EcgLeadOrigin.DIGITIZED -> LeadOriginUi.Digitized
+            EcgLeadOrigin.RECONSTRUCTED -> LeadOriginUi.Reconstructed
+            EcgLeadOrigin.MIXED -> LeadOriginUi.Mixed
+        }
+    }
+
+    private fun fallbackOriginForLead(lead: EcgLead): LeadOriginUi {
+        return when (lead) {
+            EcgLead.V3,
+            EcgLead.V4,
+            EcgLead.V5,
+            EcgLead.V6 -> LeadOriginUi.Reconstructed
+
+            else -> LeadOriginUi.Digitized
+        }
+    }
+
     private companion object {
-        const val STANDARD_LEAD_COUNT = 12
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
