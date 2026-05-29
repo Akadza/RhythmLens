@@ -71,24 +71,46 @@ class HistoryViewModel @Inject constructor(
     }
 
     private fun EcgRecord.toUi(): EcgHistoryItemUi {
+        val statusText = processingMessage ?: status.toDisplayText()
+
         return EcgHistoryItemUi(
             id = id,
             date = DATE_FORMATTER.format(recordedAt.atZone(ZoneId.systemDefault())),
             patientName = patientId,
-            mainResult = when (status) {
-                EcgStatus.PROCESSED -> "Результат анализа"
-                EcgStatus.PENDING -> "Ожидает обработки"
-                EcgStatus.ERROR -> "Ошибка обработки"
+            mainResult = if (status == EcgStatus.ERROR) {
+                errorMessage ?: statusText
+            } else {
+                statusText
             },
             probability = 0,
             digitizedLeads = digitizedSignal?.leads?.size ?: 0,
             reconstructedLeads = 0,
-            status = when (status) {
-                EcgStatus.PROCESSED -> EcgProcessingStatusUi.Processed
-                EcgStatus.PENDING -> EcgProcessingStatusUi.Processing
-                EcgStatus.ERROR -> EcgProcessingStatusUi.Error
-            }
+            status = status.toUiStatus()
         )
+    }
+
+    private fun EcgStatus.toUiStatus(): EcgProcessingStatusUi {
+        return when (this) {
+            EcgStatus.DRAFT -> EcgProcessingStatusUi.Draft
+            EcgStatus.UPLOADING -> EcgProcessingStatusUi.Uploading
+            EcgStatus.DIGITIZING -> EcgProcessingStatusUi.Digitizing
+            EcgStatus.COMPLETING -> EcgProcessingStatusUi.Completing
+            EcgStatus.ANALYZING -> EcgProcessingStatusUi.Analyzing
+            EcgStatus.PROCESSED -> EcgProcessingStatusUi.Processed
+            EcgStatus.ERROR -> EcgProcessingStatusUi.Error
+        }
+    }
+
+    private fun EcgStatus.toDisplayText(): String {
+        return when (this) {
+            EcgStatus.DRAFT -> "Черновик"
+            EcgStatus.UPLOADING -> "Загрузка изображения"
+            EcgStatus.DIGITIZING -> "Оцифровка ЭКГ"
+            EcgStatus.COMPLETING -> "Восстановление отведений"
+            EcgStatus.ANALYZING -> "ИИ-анализ"
+            EcgStatus.PROCESSED -> "Результат анализа"
+            EcgStatus.ERROR -> "Ошибка обработки"
+        }
     }
 
     private companion object {
