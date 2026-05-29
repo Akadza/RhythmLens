@@ -2,14 +2,16 @@ package com.rimuru.android.rhythmlens.domain.model
 
 import java.time.Instant
 
-data class EcgRecord (
+data class EcgRecord(
     val id: String,
     val patientId: String,
     val recordedAt: Instant,
     val originalImageUrl: String?,
     val digitizedSignal: DigitizedEcg?,
     val heartRate: Int?,
-    val status: EcgStatus = EcgStatus.PENDING,
+    val status: EcgStatus = EcgStatus.DRAFT,
+    val processingMessage: String? = null,
+    val errorMessage: String? = null,
     val doctorId: String? = null
 )
 
@@ -30,7 +32,11 @@ enum class EcgLead {
 }
 
 enum class EcgStatus {
-    PENDING,
+    DRAFT,
+    UPLOADING,
+    DIGITIZING,
+    COMPLETING,
+    ANALYZING,
     PROCESSED,
     ERROR
 }
