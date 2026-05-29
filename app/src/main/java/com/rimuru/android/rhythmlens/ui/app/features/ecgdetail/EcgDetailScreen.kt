@@ -40,9 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.AiAnalysisCard
+import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.EcgLeadChart
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSize
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
@@ -344,6 +344,13 @@ private fun LeadsCard(
     leads: List<LeadSummaryUi>,
     signalMode: SignalModeUi
 ) {
+    val visibleLeads = when (signalMode) {
+        SignalModeUi.Full -> leads
+        SignalModeUi.DigitizedOnly -> leads.filter { lead ->
+            lead.origin == LeadOriginUi.Digitized || lead.origin == LeadOriginUi.Mixed
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -373,7 +380,7 @@ private fun LeadsCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            leads.forEach { lead ->
+            visibleLeads.forEach { lead ->
                 LeadItem(lead = lead)
             }
         }
@@ -415,21 +422,12 @@ private fun LeadItem(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(
-                        R.string.lead_chart_placeholder_template,
-                        lead.name
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(RhythmSpacing.Large)
-                )
-            }
+            EcgLeadChart(
+                leadName = lead.name,
+                points = lead.points,
+                origin = lead.origin,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
