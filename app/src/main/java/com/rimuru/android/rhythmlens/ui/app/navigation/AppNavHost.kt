@@ -11,10 +11,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import com.rimuru.android.rhythmlens.R
+import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.EcgDetailRoute
 import com.rimuru.android.rhythmlens.ui.screens.MainScreen
-import com.rimuru.android.rhythmlens.ui.screens.ecg.EcgDetailScreen
 
 @Composable
 fun AppNavHost() {
@@ -28,26 +27,31 @@ fun AppNavHost() {
             MainScreen(rootNavController = navController)
         }
 
-        composable<EcgDetailDestination> { backStackEntry ->
-            val destination = backStackEntry.toRoute<EcgDetailDestination>()
-
-            EcgDetailScreen(
-                ecgId = destination.ecgId,
-                onBackClick = { navController.popBackStack() },
-                onCompareClick = {
+        composable<EcgDetailDestination> {
+            EcgDetailRoute(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToComparison = { ecgId ->
                     navController.navigate(
-                        ComparisonDestination(baseEcgId = destination.ecgId)
+                        ComparisonDestination(baseEcgId = ecgId)
                     )
                 },
-                onSyntheticClick = {
+                onNavigateToSyntheticImage = { ecgId ->
                     navController.navigate(
-                        SyntheticImageDestination(ecgId = destination.ecgId)
+                        SyntheticImageDestination(ecgId = ecgId)
                     )
                 },
-                onExportClick = {
+                onNavigateToExport = { ecgId ->
                     navController.navigate(
-                        ExportDestination(ecgId = destination.ecgId)
+                        ExportDestination(ecgId = ecgId)
                     )
+                },
+                onOpenDoctorConclusion = {
+                    // TODO: открыть экран или диалог заключения врача
+                },
+                onConfirmDelete = {
+                    // TODO: показать confirmation dialog удаления записи
                 }
             )
         }
