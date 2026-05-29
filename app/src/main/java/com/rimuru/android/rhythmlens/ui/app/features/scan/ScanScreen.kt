@@ -2,7 +2,6 @@ package com.rimuru.android.rhythmlens.ui.app.features.scan
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -51,8 +50,8 @@ fun ScanScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(RhythmSpacing.Large),
+                .padding(innerPadding)
+                .padding(RhythmSpacing.Large),
             verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Medium)
         ) {
             Text(
