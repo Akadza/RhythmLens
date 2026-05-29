@@ -102,19 +102,32 @@ class HomeViewModel @Inject constructor(
     private fun EcgRecord.toLastEcgUi(): LastEcgUi {
         val digitizedLeads = digitizedSignal?.leads?.size ?: 0
         val reconstructedLeads = (STANDARD_LEAD_COUNT - digitizedLeads).coerceAtLeast(0)
+        val statusText = processingMessage ?: status.toDisplayText()
 
         return LastEcgUi(
             id = id,
             date = DATE_FORMATTER.format(recordedAt.atZone(ZoneId.systemDefault())),
-            mainResult = when (status) {
-                EcgStatus.PROCESSED -> "Результат анализа"
-                EcgStatus.PENDING -> "Ожидает обработки"
-                EcgStatus.ERROR -> "Ошибка обработки"
+            mainResult = if (status == EcgStatus.ERROR) {
+                errorMessage ?: statusText
+            } else {
+                statusText
             },
-            probability = 0,
+            probability = if (status == EcgStatus.PROCESSED) 0 else 0,
             digitizedLeads = digitizedLeads,
             reconstructedLeads = reconstructedLeads
         )
+    }
+
+    private fun EcgStatus.toDisplayText(): String {
+        return when (this) {
+            EcgStatus.DRAFT -> "Черновик"
+            EcgStatus.UPLOADING -> "Загрузка изображения"
+            EcgStatus.DIGITIZING -> "Оцифровка ЭКГ"
+            EcgStatus.COMPLETING -> "Восстановление отведений"
+            EcgStatus.ANALYZING -> "ИИ-анализ"
+            EcgStatus.PROCESSED -> "Результат анализа"
+            EcgStatus.ERROR -> "Ошибка обработки"
+        }
     }
 
     private companion object {
