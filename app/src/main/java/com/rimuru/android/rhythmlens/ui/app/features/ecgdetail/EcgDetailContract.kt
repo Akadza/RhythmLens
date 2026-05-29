@@ -9,6 +9,8 @@ sealed interface EcgDetailEvent {
     data object ExportClicked : EcgDetailEvent
     data object DoctorConclusionClicked : EcgDetailEvent
     data object DeleteClicked : EcgDetailEvent
+    data object DeleteConfirmed : EcgDetailEvent
+    data object DeleteDismissed : EcgDetailEvent
     data class SignalModeChanged(val mode: SignalModeUi) : EcgDetailEvent
 }
 
@@ -18,7 +20,6 @@ sealed interface EcgDetailEffect {
     data class NavigateToSyntheticImage(val ecgId: String) : EcgDetailEffect
     data class NavigateToExport(val ecgId: String) : EcgDetailEffect
     data class OpenDoctorConclusion(val ecgId: String) : EcgDetailEffect
-    data class ConfirmDelete(val ecgId: String) : EcgDetailEffect
 }
 
 data class EcgDetailUiState(
@@ -29,7 +30,9 @@ data class EcgDetailUiState(
     val leads: List<LeadSummaryUi>,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val signalMode: SignalModeUi = SignalModeUi.Full
+    val signalMode: SignalModeUi = SignalModeUi.Full,
+    val isDeleteDialogVisible: Boolean = false,
+    val isDeleting: Boolean = false
 )
 
 data class SignalInfoUi(
