@@ -62,7 +62,7 @@ class HistoryViewModel @Inject constructor(
                     _uiState.update {
                         HistoryUiState(
                             isLoading = false,
-                            items = records.filterNotNull().map { record -> record.toUi() },
+                            items = records.map { record -> record.toUi() },
                             errorMessage = null
                         )
                     }
