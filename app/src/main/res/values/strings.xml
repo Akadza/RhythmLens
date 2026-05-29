@@ -78,6 +78,10 @@
 
     <string name="twelve_leads">12 отведений</string>
     <string name="lead_chart_placeholder_template">Мини-график отведения %1$s</string>
+    <string name="lead_chart_no_data_template">Нет данных для отведения %1$s</string>
+    <string name="ecg_voltage_unit">мВ</string>
+    <string name="ecg_time_unit">с</string>
+    <string name="ecg_chart_scale">25 мм/с · 10 мм/мВ</string>
     <string name="lead_origin_digitized">оцифровано</string>
     <string name="lead_origin_reconstructed">восстановлено</string>
     <string name="lead_origin_mixed">частично</string>
