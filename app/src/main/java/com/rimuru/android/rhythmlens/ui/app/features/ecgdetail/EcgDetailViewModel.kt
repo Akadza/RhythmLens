@@ -86,14 +86,11 @@ class EcgDetailViewModel @Inject constructor(
                 }
                 .collect { record ->
                     _uiState.update { currentState ->
-                        if (record == null) {
-                            currentState.copy(
+                        record?.toUiState(previousState = currentState)
+                            ?: currentState.copy(
                                 isLoading = false,
                                 errorMessage = "Запись ЭКГ не найдена"
                             )
-                        } else {
-                            record.toUiState(previousState = currentState)
-                        }
                     }
                 }
         }
@@ -103,7 +100,7 @@ class EcgDetailViewModel @Inject constructor(
         val fallback = sampleInitialState(id)
         val digitizedLeads = digitizedSignal?.leads?.size ?: fallback.signalInfo.digitizedLeads
         val duration = digitizedSignal?.durationSeconds?.let { durationSeconds ->
-            "${durationSeconds} с"
+            "$durationSeconds с"
         } ?: fallback.signalInfo.duration
         val samplingRate = digitizedSignal?.samplingRate?.let { rate ->
             "$rate Гц"
