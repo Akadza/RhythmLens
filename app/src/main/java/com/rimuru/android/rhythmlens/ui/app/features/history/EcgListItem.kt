@@ -30,8 +30,12 @@ data class EcgHistoryItemUi(
 )
 
 enum class EcgProcessingStatusUi {
+    Draft,
+    Uploading,
+    Digitizing,
+    Completing,
+    Analyzing,
     Processed,
-    Processing,
     Error
 }
 
@@ -45,7 +49,7 @@ fun EcgListItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable(
-                enabled = item.status == EcgProcessingStatusUi.Processed
+                enabled = item.status != EcgProcessingStatusUi.Draft
             ) {
                 onClick()
             },
@@ -69,11 +73,15 @@ fun EcgListItem(
             )
 
             Text(
-                text = stringResource(
-                    R.string.result_probability_template,
-                    item.mainResult,
-                    item.probability
-                ),
+                text = if (item.status == EcgProcessingStatusUi.Processed) {
+                    stringResource(
+                        R.string.result_probability_template,
+                        item.mainResult,
+                        item.probability
+                    )
+                } else {
+                    item.mainResult
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -108,8 +116,12 @@ fun EcgListItem(
 @Composable
 private fun EcgProcessingStatusUi.label(): String {
     return when (this) {
+        EcgProcessingStatusUi.Draft -> stringResource(R.string.status_draft)
+        EcgProcessingStatusUi.Uploading -> stringResource(R.string.status_uploading)
+        EcgProcessingStatusUi.Digitizing -> stringResource(R.string.status_digitizing)
+        EcgProcessingStatusUi.Completing -> stringResource(R.string.status_completing)
+        EcgProcessingStatusUi.Analyzing -> stringResource(R.string.status_analyzing)
         EcgProcessingStatusUi.Processed -> stringResource(R.string.status_processed)
-        EcgProcessingStatusUi.Processing -> stringResource(R.string.status_processing)
         EcgProcessingStatusUi.Error -> stringResource(R.string.status_error)
     }
 }
