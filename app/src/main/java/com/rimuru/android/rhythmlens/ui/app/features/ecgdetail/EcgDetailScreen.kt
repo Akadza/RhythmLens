@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
@@ -28,12 +29,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,10 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.AiAnalysisCard
-import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSize
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,8 +171,52 @@ fun EcgDetailScreen(
             item { DoctorConclusionPreview() }
         }
     }
+
+    if (state.isDeleteDialogVisible) {
+        DeleteEcgDialog(
+            isDeleting = state.isDeleting,
+            onConfirm = { onEvent(EcgDetailEvent.DeleteConfirmed) },
+            onDismiss = { onEvent(EcgDetailEvent.DeleteDismissed) }
+        )
+    }
 }
 
+@Composable
+private fun DeleteEcgDialog(
+    isDeleting: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = {
+            if (!isDeleting) {
+                onDismiss()
+            }
+        },
+        title = {
+            Text(text = stringResource(R.string.delete_ecg_dialog_title))
+        },
+        text = {
+            Text(text = stringResource(R.string.delete_ecg_dialog_body))
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !isDeleting,
+                onClick = onConfirm
+            ) {
+                Text(text = stringResource(R.string.delete))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                enabled = !isDeleting,
+                onClick = onDismiss
+            ) {
+                Text(text = stringResource(R.string.cancel))
+            }
+        }
+    )
+}
 
 @Composable
 private fun SignalInfoCard(
