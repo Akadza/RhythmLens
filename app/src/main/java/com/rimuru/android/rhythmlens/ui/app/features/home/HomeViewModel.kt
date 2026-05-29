@@ -1,4 +1,4 @@
-package com.rimuru.android.rhythmlens.ui.screens.home
+package com.rimuru.android.rhythmlens.ui.app.features.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
