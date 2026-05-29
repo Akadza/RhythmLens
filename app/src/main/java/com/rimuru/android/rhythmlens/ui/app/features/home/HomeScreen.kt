@@ -153,6 +153,7 @@ fun HomeScreen(
             }
         ) {
             AddEcgBottomSheetContent(
+                isCreatingTestEcg = state.isCreatingTestEcg,
                 onScanClick = {
                     onEvent(HomeEvent.ScanClicked)
                 },
@@ -161,6 +162,9 @@ fun HomeScreen(
                 },
                 onImportClick = {
                     onEvent(HomeEvent.ImportClicked)
+                },
+                onCreateTestEcgClick = {
+                    onEvent(HomeEvent.CreateTestEcgClicked)
                 }
             )
         }
@@ -239,11 +243,15 @@ private fun LastEcgCard(
                 )
 
                 Text(
-                    text = stringResource(
-                        R.string.result_probability_template,
-                        record.mainResult,
-                        record.probability
-                    ),
+                    text = if (record.probability == null) {
+                        record.mainResult
+                    } else {
+                        stringResource(
+                            R.string.result_probability_template,
+                            record.mainResult,
+                            record.probability
+                        )
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -321,9 +329,11 @@ private fun StatItem(
 
 @Composable
 private fun AddEcgBottomSheetContent(
+    isCreatingTestEcg: Boolean,
     onScanClick: () -> Unit,
     onGalleryClick: () -> Unit,
-    onImportClick: () -> Unit
+    onImportClick: () -> Unit,
+    onCreateTestEcgClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -349,6 +359,7 @@ private fun AddEcgBottomSheetContent(
 
         Button(
             onClick = onScanClick,
+            enabled = !isCreatingTestEcg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.take_photo))
@@ -356,6 +367,7 @@ private fun AddEcgBottomSheetContent(
 
         FilledTonalButton(
             onClick = onGalleryClick,
+            enabled = !isCreatingTestEcg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.choose_from_gallery))
@@ -363,9 +375,24 @@ private fun AddEcgBottomSheetContent(
 
         FilledTonalButton(
             onClick = onImportClick,
+            enabled = !isCreatingTestEcg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.import_file))
+        }
+
+        FilledTonalButton(
+            onClick = onCreateTestEcgClick,
+            enabled = !isCreatingTestEcg,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = if (isCreatingTestEcg) {
+                    stringResource(R.string.processing)
+                } else {
+                    stringResource(R.string.create_test_ecg)
+                }
+            )
         }
     }
 }
