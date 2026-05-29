@@ -1,5 +1,6 @@
 package com.rimuru.android.rhythmlens.ui.screens.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,10 +34,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -47,33 +44,14 @@ import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSize
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
-data class HomeUiState(
-    val userName: String,
-    val totalRecords: Int,
-    val linkedDoctorCount: Int,
-    val lastRecord: LastEcgUi?
-)
-
-data class LastEcgUi(
-    val id: String,
-    val date: String,
-    val mainResult: String,
-    val probability: Int,
-    val digitizedLeads: Int,
-    val reconstructedLeads: Int
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier,
-    state: HomeUiState = sampleHomeState(),
-    onScanClick: () -> Unit,
-    onGalleryClick: () -> Unit,
-    onImportClick: () -> Unit
+    state: HomeUiState,
+    onEvent: (HomeEvent) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isSheetVisible by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     Scaffold(
@@ -93,7 +71,9 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { isSheetVisible = true },
+                onClick = {
+                    onEvent(HomeEvent.AddEcgClicked)
+                },
                 modifier = Modifier
                     .size(RhythmSize.Fab)
                     .padding(bottom = RhythmSpacing.Small),
@@ -127,7 +107,12 @@ fun HomeScreen(
             }
 
             item {
-                LastEcgCard(record = state.lastRecord)
+                LastEcgCard(
+                    record = state.lastRecord,
+                    onClick = { ecgId ->
+                        onEvent(HomeEvent.LastRecordClicked(ecgId))
+                    }
+                )
             }
 
             item {
@@ -157,9 +142,11 @@ fun HomeScreen(
         }
     }
 
-    if (isSheetVisible) {
+    if (state.isAddEcgSheetVisible) {
         ModalBottomSheet(
-            onDismissRequest = { isSheetVisible = false },
+            onDismissRequest = {
+                onEvent(HomeEvent.AddEcgSheetDismissed)
+            },
             sheetState = sheetState,
             dragHandle = {
                 BottomSheetDefaults.DragHandle()
@@ -167,16 +154,13 @@ fun HomeScreen(
         ) {
             AddEcgBottomSheetContent(
                 onScanClick = {
-                    isSheetVisible = false
-                    onScanClick()
+                    onEvent(HomeEvent.ScanClicked)
                 },
                 onGalleryClick = {
-                    isSheetVisible = false
-                    onGalleryClick()
+                    onEvent(HomeEvent.GalleryClicked)
                 },
                 onImportClick = {
-                    isSheetVisible = false
-                    onImportClick()
+                    onEvent(HomeEvent.ImportClicked)
                 }
             )
         }
@@ -213,10 +197,21 @@ private fun WelcomeCard(
 
 @Composable
 private fun LastEcgCard(
-    record: LastEcgUi?
+    record: LastEcgUi?,
+    onClick: (String) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (record != null) {
+                    Modifier.clickable {
+                        onClick(record.id)
+                    }
+                } else {
+                    Modifier
+                }
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -373,21 +368,4 @@ private fun AddEcgBottomSheetContent(
             Text(text = stringResource(R.string.import_file))
         }
     }
-}
-
-@Composable
-private fun sampleHomeState(): HomeUiState {
-    return HomeUiState(
-        userName = stringResource(R.string.sample_user_name),
-        totalRecords = 3,
-        linkedDoctorCount = 0,
-        lastRecord = LastEcgUi(
-            id = "ecg-1",
-            date = stringResource(R.string.sample_date_1),
-            mainResult = stringResource(R.string.sample_result_afib),
-            probability = 50,
-            digitizedLeads = 8,
-            reconstructedLeads = 4
-        )
-    )
 }
