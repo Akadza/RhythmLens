@@ -14,22 +14,27 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.screens.history.HistoryScreen
-import com.rimuru.android.rhythmlens.ui.screens.home.HomeScreen
+import com.rimuru.android.rhythmlens.ui.screens.home.HomeRoute
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
 fun NavGraphBuilder.bottomNavGraph(
     rootNavController: NavHostController
 ) {
     composable<BottomNavDestination.Home> {
-        HomeScreen(
-            onScanClick = {
+        HomeRoute(
+            onNavigateToScan = {
                 rootNavController.navigate(ScanDestination)
             },
-            onGalleryClick = {
+            onOpenGalleryPicker = {
                 // TODO: открыть системный Photo Picker
             },
-            onImportClick = {
+            onOpenFilePicker = {
                 // TODO: открыть системный File Picker
+            },
+            onNavigateToEcgDetail = { ecgId ->
+                rootNavController.navigate(
+                    EcgDetailDestination(ecgId)
+                )
             }
         )
     }
