@@ -13,7 +13,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.EcgDetailRoute
-import com.rimuru.android.rhythmlens.ui.app.features.scan.ScanRoute
 import com.rimuru.android.rhythmlens.ui.screens.MainScreen
 
 @Composable
@@ -57,25 +56,6 @@ fun AppNavHost() {
         composable<ComparisonDestination> {
             RoutePlaceholderScreen(
                 title = stringResource(R.string.screen_comparison)
-            )
-        }
-
-        composable<ScanDestination> {
-            ScanRoute(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-                onNavigateToEcgDetail = { ecgId ->
-                    navController.navigate(
-                        EcgDetailDestination(ecgId = ecgId)
-                    )
-                },
-                onOpenCamera = {
-                    // TODO: открыть CameraX flow
-                },
-                onOpenGalleryPicker = {
-                    // TODO: открыть системный Photo Picker
-                }
             )
         }
 
