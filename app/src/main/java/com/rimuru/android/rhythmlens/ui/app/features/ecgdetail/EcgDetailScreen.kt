@@ -1,4 +1,4 @@
-package com.rimuru.android.rhythmlens.ui.screens.ecg
+package com.rimuru.android.rhythmlens.ui.app.features.ecgdetail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,59 +40,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.rimuru.android.rhythmlens.R
-import com.rimuru.android.rhythmlens.ui.screens.ecg.components.AiAnalysisCard
-import com.rimuru.android.rhythmlens.ui.screens.ecg.components.DiagnosisProbabilityUi
+import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.AiAnalysisCard
+import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSize
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
-data class EcgDetailUiState(
-    val ecgId: String,
-    val date: String,
-    val probabilities: List<DiagnosisProbabilityUi>,
-    val signalInfo: SignalInfoUi,
-    val leads: List<LeadSummaryUi>
-)
-
-data class SignalInfoUi(
-    val duration: String,
-    val samplingRate: String,
-    val digitizedLeads: Int,
-    val reconstructedLeads: Int,
-    val source: String,
-    val quality: String
-)
-
-data class LeadSummaryUi(
-    val name: String,
-    val origin: LeadOriginUi
-)
-
-enum class LeadOriginUi {
-    Digitized,
-    Reconstructed,
-    Mixed
-}
-
-private enum class SignalMode {
-    Full,
-    DigitizedOnly
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EcgDetailScreen(
-    ecgId: String,
-    onBackClick: () -> Unit,
-    onCompareClick: () -> Unit,
-    onSyntheticClick: () -> Unit,
-    onExportClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    state: EcgDetailUiState = sampleEcgDetailState(ecgId)
+    state: EcgDetailUiState,
+    onEvent: (EcgDetailEvent) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    var signalMode by remember {
-        mutableStateOf(SignalMode.Full)
-    }
-
     var isMenuExpanded by remember {
         mutableStateOf(false)
     }
@@ -110,9 +70,7 @@ fun EcgDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onBackClick
-                    ) {
+                    IconButton(onClick = { onEvent(EcgDetailEvent.BackClicked) }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back)
@@ -131,29 +89,21 @@ fun EcgDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     FilledTonalButton(
-                        onClick = onCompareClick,
+                        onClick = { onEvent(EcgDetailEvent.CompareClicked) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
-                            text = stringResource(R.string.compare)
-                        )
+                        Text(text = stringResource(R.string.compare))
                     }
 
                     Button(
-                        onClick = onExportClick,
+                        onClick = { onEvent(EcgDetailEvent.ExportClicked) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
-                            text = stringResource(R.string.export)
-                        )
+                        Text(text = stringResource(R.string.export))
                     }
 
                     Box {
-                        IconButton(
-                            onClick = {
-                                isMenuExpanded = true
-                            }
-                        ) {
+                        IconButton(onClick = { isMenuExpanded = true }) {
                             Icon(
                                 imageVector = Icons.Filled.MoreVert,
                                 contentDescription = stringResource(R.string.more)
@@ -162,41 +112,29 @@ fun EcgDetailScreen(
 
                         DropdownMenu(
                             expanded = isMenuExpanded,
-                            onDismissRequest = {
-                                isMenuExpanded = false
-                            }
+                            onDismissRequest = { isMenuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = stringResource(R.string.synthetic_ecg)
-                                    )
-                                },
+                                text = { Text(stringResource(R.string.synthetic_ecg)) },
                                 onClick = {
                                     isMenuExpanded = false
-                                    onSyntheticClick()
+                                    onEvent(EcgDetailEvent.SyntheticClicked)
                                 }
                             )
 
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = stringResource(R.string.doctor_conclusion)
-                                    )
-                                },
+                                text = { Text(stringResource(R.string.doctor_conclusion)) },
                                 onClick = {
                                     isMenuExpanded = false
+                                    onEvent(EcgDetailEvent.DoctorConclusionClicked)
                                 }
                             )
 
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = stringResource(R.string.delete_record)
-                                    )
-                                },
+                                text = { Text(stringResource(R.string.delete_record)) },
                                 onClick = {
                                     isMenuExpanded = false
+                                    onEvent(EcgDetailEvent.DeleteClicked)
                                 }
                             )
                         }
@@ -210,23 +148,15 @@ fun EcgDetailScreen(
             contentPadding = PaddingValues(RhythmSpacing.Large),
             verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Large)
         ) {
-            item {
-                AiAnalysisCard(
-                    probabilities = state.probabilities
-                )
-            }
+            item { AiAnalysisCard(probabilities = state.probabilities) }
 
-            item {
-                SignalInfoCard(
-                    signalInfo = state.signalInfo
-                )
-            }
+            item { SignalInfoCard(signalInfo = state.signalInfo) }
 
             item {
                 SignalModeSelector(
-                    selectedMode = signalMode,
-                    onModeSelected = { selectedMode ->
-                        signalMode = selectedMode
+                    selectedMode = state.signalMode,
+                    onModeSelected = { mode ->
+                        onEvent(EcgDetailEvent.SignalModeChanged(mode))
                     }
                 )
             }
@@ -234,16 +164,15 @@ fun EcgDetailScreen(
             item {
                 LeadsCard(
                     leads = state.leads,
-                    signalMode = signalMode
+                    signalMode = state.signalMode
                 )
             }
 
-            item {
-                DoctorConclusionPreview()
-            }
+            item { DoctorConclusionPreview() }
         }
     }
 }
+
 
 @Composable
 private fun SignalInfoCard(
@@ -333,17 +262,17 @@ private fun SignalInfoRow(
 
 @Composable
 private fun SignalModeSelector(
-    selectedMode: SignalMode,
-    onModeSelected: (SignalMode) -> Unit
+    selectedMode: SignalModeUi,
+    onModeSelected: (SignalModeUi) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(RhythmSpacing.Small)
     ) {
         FilterChip(
-            selected = selectedMode == SignalMode.Full,
+            selected = selectedMode == SignalModeUi.Full,
             onClick = {
-                onModeSelected(SignalMode.Full)
+                onModeSelected(SignalModeUi.Full)
             },
             label = {
                 Text(
@@ -353,9 +282,9 @@ private fun SignalModeSelector(
         )
 
         FilterChip(
-            selected = selectedMode == SignalMode.DigitizedOnly,
+            selected = selectedMode == SignalModeUi.DigitizedOnly,
             onClick = {
-                onModeSelected(SignalMode.DigitizedOnly)
+                onModeSelected(SignalModeUi.DigitizedOnly)
             },
             label = {
                 Text(
@@ -369,7 +298,7 @@ private fun SignalModeSelector(
 @Composable
 private fun LeadsCard(
     leads: List<LeadSummaryUi>,
-    signalMode: SignalMode
+    signalMode: SignalModeUi
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -388,11 +317,11 @@ private fun LeadsCard(
 
             Text(
                 text = when (signalMode) {
-                    SignalMode.Full -> {
+                    SignalModeUi.Full -> {
                         stringResource(R.string.signal_mode_full_description)
                     }
 
-                    SignalMode.DigitizedOnly -> {
+                    SignalModeUi.DigitizedOnly -> {
                         stringResource(R.string.signal_mode_digitized_description)
                     }
                 },

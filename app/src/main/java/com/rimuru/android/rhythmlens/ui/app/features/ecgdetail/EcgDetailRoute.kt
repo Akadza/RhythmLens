@@ -3,7 +3,7 @@ package com.rimuru.android.rhythmlens.ui.app.features.ecgdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rimuru.android.rhythmlens.ui.screens.ecg.EcgDetailScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun EcgDetailRoute(
@@ -15,6 +15,8 @@ fun EcgDetailRoute(
     onConfirmDelete: (String) -> Unit,
     viewModel: EcgDetailViewModel = hiltViewModel()
 ) {
+    val state = viewModel.uiState.collectAsStateWithLifecycle()
+
     LaunchedEffect(viewModel) {
         viewModel.effect.collect { effect ->
             when (effect) {
@@ -46,18 +48,7 @@ fun EcgDetailRoute(
     }
 
     EcgDetailScreen(
-        ecgId = viewModel.ecgId,
-        onBackClick = {
-            viewModel.onEvent(EcgDetailEvent.BackClicked)
-        },
-        onCompareClick = {
-            viewModel.onEvent(EcgDetailEvent.CompareClicked)
-        },
-        onSyntheticClick = {
-            viewModel.onEvent(EcgDetailEvent.SyntheticClicked)
-        },
-        onExportClick = {
-            viewModel.onEvent(EcgDetailEvent.ExportClicked)
-        }
+        state = state.value,
+        onEvent = viewModel::onEvent
     )
 }

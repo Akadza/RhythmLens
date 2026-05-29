@@ -1,4 +1,4 @@
-package com.rimuru.android.rhythmlens.ui.screens.ecg.components
+package com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
