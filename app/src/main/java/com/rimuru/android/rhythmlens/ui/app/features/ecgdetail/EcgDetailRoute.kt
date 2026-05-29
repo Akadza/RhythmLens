@@ -12,7 +12,6 @@ fun EcgDetailRoute(
     onNavigateToSyntheticImage: (String) -> Unit,
     onNavigateToExport: (String) -> Unit,
     onOpenDoctorConclusion: (String) -> Unit,
-    onConfirmDelete: (String) -> Unit,
     viewModel: EcgDetailViewModel = hiltViewModel()
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
@@ -38,10 +37,6 @@ fun EcgDetailRoute(
 
                 is EcgDetailEffect.OpenDoctorConclusion -> {
                     onOpenDoctorConclusion(effect.ecgId)
-                }
-
-                is EcgDetailEffect.ConfirmDelete -> {
-                    onConfirmDelete(effect.ecgId)
                 }
             }
         }
