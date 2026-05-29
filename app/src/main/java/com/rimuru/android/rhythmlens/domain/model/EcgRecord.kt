@@ -17,6 +17,7 @@ data class EcgRecord(
 
 data class DigitizedEcg(
     val leads: Map<EcgLead, List<EcgPoint>>,
+    val leadOrigins: Map<EcgLead, EcgLeadOrigin> = leads.keys.associateWith { EcgLeadOrigin.DIGITIZED },
     val samplingRate: Int = 500, // hz
     val durationSeconds: Double
 )
@@ -29,6 +30,12 @@ data class EcgPoint(
 enum class EcgLead {
     I, II, III, aVR, aVL, aVF,
     V1, V2, V3, V4, V5, V6
+}
+
+enum class EcgLeadOrigin {
+    DIGITIZED,
+    RECONSTRUCTED,
+    MIXED
 }
 
 enum class EcgStatus {
