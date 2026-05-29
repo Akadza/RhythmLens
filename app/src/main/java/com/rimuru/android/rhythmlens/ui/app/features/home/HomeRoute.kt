@@ -7,7 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun HomeRoute(
-    onNavigateToScan: () -> Unit,
+    onOpenCamera: () -> Unit,
     onOpenGalleryPicker: () -> Unit,
     onOpenFilePicker: () -> Unit,
     onNavigateToEcgDetail: (String) -> Unit,
@@ -18,8 +18,8 @@ fun HomeRoute(
     LaunchedEffect(viewModel) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                HomeEffect.NavigateToScan -> {
-                    onNavigateToScan()
+                HomeEffect.OpenCamera -> {
+                    onOpenCamera()
                 }
 
                 HomeEffect.OpenGalleryPicker -> {
