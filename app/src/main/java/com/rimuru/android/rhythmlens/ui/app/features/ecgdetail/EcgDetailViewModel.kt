@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.rimuru.android.rhythmlens.domain.model.EcgLead
 import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
+import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
+import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.usecase.DeleteEcgUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgByIdUseCase
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
@@ -21,6 +23,8 @@ import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import kotlin.math.PI
+import kotlin.math.sin
 
 @HiltViewModel
 class EcgDetailViewModel @Inject constructor(
@@ -141,12 +145,13 @@ class EcgDetailViewModel @Inject constructor(
 
     private fun EcgRecord.toUiState(previousState: EcgDetailUiState): EcgDetailUiState {
         val fallback = sampleInitialState(id)
-        val digitizedLeads = digitizedSignal?.leadOrigins
-            ?.count { (_, origin) -> origin == EcgLeadOrigin.DIGITIZED || origin == EcgLeadOrigin.MIXED }
-            ?: fallback.signalInfo.digitizedLeads
-        val reconstructedLeads = digitizedSignal?.leadOrigins
-            ?.count { (_, origin) -> origin == EcgLeadOrigin.RECONSTRUCTED || origin == EcgLeadOrigin.MIXED }
-            ?: fallback.signalInfo.reconstructedLeads
+        val leads = buildLeadSummaryList(this)
+        val digitizedLeads = leads.count { lead ->
+            lead.origin == LeadOriginUi.Digitized || lead.origin == LeadOriginUi.Mixed
+        }
+        val reconstructedLeads = leads.count { lead ->
+            lead.origin == LeadOriginUi.Reconstructed || lead.origin == LeadOriginUi.Mixed
+        }
         val duration = digitizedSignal?.durationSeconds?.let { durationSeconds ->
             "$durationSeconds с"
         } ?: fallback.signalInfo.duration
@@ -163,7 +168,7 @@ class EcgDetailViewModel @Inject constructor(
                 digitizedLeads = digitizedLeads,
                 reconstructedLeads = reconstructedLeads
             ),
-            leads = buildLeadSummaryList(this),
+            leads = leads,
             isLoading = false,
             errorMessage = null,
             signalMode = previousState.signalMode,
@@ -174,15 +179,35 @@ class EcgDetailViewModel @Inject constructor(
 
     private fun buildLeadSummaryList(record: EcgRecord): List<LeadSummaryUi> {
         val signal = record.digitizedSignal
+        val shouldUseFallbackSignal = signal == null && record.status == EcgStatus.PROCESSED
 
         return EcgLead.entries.map { lead ->
             val origin = signal?.leadOrigins?.get(lead)?.toUiOrigin()
-                ?: if (signal == null) fallbackOriginForLead(lead) else LeadOriginUi.Reconstructed
+                ?: fallbackOriginForLead(lead)
+            val points = signal?.leads?.get(lead)
+                ?: if (shouldUseFallbackSignal) buildFallbackLeadPoints(lead) else emptyList()
 
             LeadSummaryUi(
                 name = lead.name,
                 origin = origin,
-                points = signal?.leads?.get(lead).orEmpty()
+                points = points
+            )
+        }
+    }
+
+    private fun buildFallbackLeadPoints(lead: EcgLead): List<EcgPoint> {
+        val phaseShift = lead.ordinal * 0.12
+        val amplitude = 0.7 + lead.ordinal * 0.03
+        val pointCount = (FALLBACK_SAMPLING_RATE * FALLBACK_DURATION_SECONDS).toInt()
+
+        return List(pointCount) { index ->
+            val timeMs = index * 1000L / FALLBACK_SAMPLING_RATE
+            val timeSeconds = index.toDouble() / FALLBACK_SAMPLING_RATE
+            val voltage = amplitude * sin(2.0 * PI * FALLBACK_HEART_RATE_HZ * timeSeconds + phaseShift)
+
+            EcgPoint(
+                timeMs = timeMs,
+                voltageMv = voltage
             )
         }
     }
@@ -207,6 +232,9 @@ class EcgDetailViewModel @Inject constructor(
     }
 
     private companion object {
+        const val FALLBACK_SAMPLING_RATE = 500
+        const val FALLBACK_DURATION_SECONDS = 10.0
+        const val FALLBACK_HEART_RATE_HZ = 1.2
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
