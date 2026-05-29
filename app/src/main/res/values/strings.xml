@@ -42,6 +42,11 @@
     <string name="history_empty_body">Добавьте первую ЭКГ с главного экрана.</string>
     <string name="two_line_message_template">%1$s\n%2$s</string>
 
+    <string name="status_draft">Черновик</string>
+    <string name="status_uploading">Загрузка</string>
+    <string name="status_digitizing">Оцифровка</string>
+    <string name="status_completing">Восстановление</string>
+    <string name="status_analyzing">ИИ-анализ</string>
     <string name="status_processed">Анализ выполнен</string>
     <string name="status_processing">В обработке</string>
     <string name="status_error">Ошибка обработки</string>
