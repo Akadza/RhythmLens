@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.rimuru.android.rhythmlens.domain.model.EcgLead
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
+import com.rimuru.android.rhythmlens.domain.usecase.DeleteEcgUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgByIdUseCase
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
 import com.rimuru.android.rhythmlens.ui.navigation.EcgDetailDestination
@@ -23,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class EcgDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getEcgByIdUseCase: GetEcgByIdUseCase
+    private val getEcgByIdUseCase: GetEcgByIdUseCase,
+    private val deleteEcgUseCase: DeleteEcgUseCase
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<EcgDetailDestination>()
@@ -62,7 +64,19 @@ class EcgDetailViewModel @Inject constructor(
             }
 
             EcgDetailEvent.DeleteClicked -> {
-                _effect.trySend(EcgDetailEffect.ConfirmDelete(ecgId))
+                _uiState.update { state ->
+                    state.copy(isDeleteDialogVisible = true)
+                }
+            }
+
+            EcgDetailEvent.DeleteDismissed -> {
+                _uiState.update { state ->
+                    state.copy(isDeleteDialogVisible = false)
+                }
+            }
+
+            EcgDetailEvent.DeleteConfirmed -> {
+                deleteCurrentEcg()
             }
 
             is EcgDetailEvent.SignalModeChanged -> {
@@ -96,6 +110,34 @@ class EcgDetailViewModel @Inject constructor(
         }
     }
 
+    private fun deleteCurrentEcg() {
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(isDeleting = true)
+            }
+
+            runCatching {
+                deleteEcgUseCase(ecgId)
+            }.onSuccess {
+                _uiState.update { state ->
+                    state.copy(
+                        isDeleting = false,
+                        isDeleteDialogVisible = false
+                    )
+                }
+                _effect.trySend(EcgDetailEffect.NavigateBack)
+            }.onFailure { throwable ->
+                _uiState.update { state ->
+                    state.copy(
+                        isDeleting = false,
+                        isDeleteDialogVisible = false,
+                        errorMessage = throwable.message ?: "Не удалось удалить запись ЭКГ"
+                    )
+                }
+            }
+        }
+    }
+
     private fun EcgRecord.toUiState(previousState: EcgDetailUiState): EcgDetailUiState {
         val fallback = sampleInitialState(id)
         val digitizedLeads = digitizedSignal?.leads?.size ?: fallback.signalInfo.digitizedLeads
@@ -118,7 +160,9 @@ class EcgDetailViewModel @Inject constructor(
             leads = buildLeadSummaryList(this),
             isLoading = false,
             errorMessage = null,
-            signalMode = previousState.signalMode
+            signalMode = previousState.signalMode,
+            isDeleteDialogVisible = previousState.isDeleteDialogVisible,
+            isDeleting = previousState.isDeleting
         )
     }
 
