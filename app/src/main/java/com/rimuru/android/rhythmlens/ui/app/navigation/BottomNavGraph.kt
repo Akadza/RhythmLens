@@ -22,8 +22,8 @@ fun NavGraphBuilder.bottomNavGraph(
 ) {
     composable<BottomNavDestination.Home> {
         HomeRoute(
-            onNavigateToScan = {
-                rootNavController.navigate(ScanDestination)
+            onOpenCamera = {
+                // TODO: открыть CameraX flow
             },
             onOpenGalleryPicker = {
                 // TODO: открыть системный Photo Picker
