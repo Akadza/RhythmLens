@@ -1,5 +1,6 @@
 package com.rimuru.android.rhythmlens.ui.app.features.ecgdetail
 
+import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
 
 sealed interface EcgDetailEvent {
@@ -46,7 +47,8 @@ data class SignalInfoUi(
 
 data class LeadSummaryUi(
     val name: String,
-    val origin: LeadOriginUi
+    val origin: LeadOriginUi,
+    val points: List<EcgPoint> = emptyList()
 )
 
 enum class LeadOriginUi {
