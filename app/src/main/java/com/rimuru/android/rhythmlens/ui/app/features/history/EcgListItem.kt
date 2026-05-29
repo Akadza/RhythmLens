@@ -1,4 +1,4 @@
-package com.rimuru.android.rhythmlens.ui.screens.history
+package com.rimuru.android.rhythmlens.ui.app.features.history
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
