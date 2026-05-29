@@ -3,6 +3,7 @@ package com.rimuru.android.rhythmlens.di
 import android.content.Context
 import androidx.room.Room
 import com.rimuru.android.rhythmlens.data.local.RhythmLensDatabase
+import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,5 +27,8 @@ object DatabaseModule {
             .build()
     }
 
-    // DAO будут провайдиться позже через Database класс
+    @Provides
+    fun provideEcgDao(database: RhythmLensDatabase): EcgDao {
+        return database.ecgDao()
+    }
 }
