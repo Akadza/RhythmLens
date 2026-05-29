@@ -13,9 +13,6 @@ class EcgRepositoryImpl @Inject constructor(
     private val ecgDao: EcgDao
 ) : EcgRepository {
 
-    // ─────────────────────────────────────────────────────────────
-    // Мапперы Entity ↔ Domain
-    // ─────────────────────────────────────────────────────────────
     private fun EcgRecordEntity.toDomain(): EcgRecord {
         return EcgRecord(
             id = id,
@@ -24,7 +21,9 @@ class EcgRepositoryImpl @Inject constructor(
             originalImageUrl = originalImageUrl,
             digitizedSignal = null,           // TODO: parse JSON
             heartRate = heartRate,
-            status = EcgStatus.valueOf(status),
+            status = status.toEcgStatus(),
+            processingMessage = processingMessage,
+            errorMessage = errorMessage,
             doctorId = doctorId
         )
     }
@@ -38,16 +37,13 @@ class EcgRepositoryImpl @Inject constructor(
             digitizedSignalJson = "{}",       // TODO: parse JSON
             heartRate = heartRate,
             status = status.name,
+            processingMessage = processingMessage,
+            errorMessage = errorMessage,
             doctorId = doctorId
         )
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Реализация интерфейса
-    // ─────────────────────────────────────────────────────────────
     override suspend fun digitizeEcg(imageUri: String): EcgRecord {
-        // TODO: Отправка фото на сервер + получение оцифрованного сигнала
-        // Пока возвращаем заглушку
         val fakeRecord = EcgRecord(
             id = java.util.UUID.randomUUID().toString(),
             patientId = "temp-patient-id",
@@ -55,9 +51,10 @@ class EcgRepositoryImpl @Inject constructor(
             originalImageUrl = imageUri,
             digitizedSignal = null,
             heartRate = 72,
-            status = EcgStatus.PENDING
+            status = EcgStatus.DIGITIZING,
+            processingMessage = "Оцифровка ЭКГ"
         )
-        saveEcg(fakeRecord)          // сразу сохраняем в локальную БД
+        saveEcg(fakeRecord)
         return fakeRecord
     }
 
@@ -82,5 +79,12 @@ class EcgRepositoryImpl @Inject constructor(
     override suspend fun generateSyntheticImage(ecgId: String): String {
         // TODO: Запрос на сервер
         return "https://fake-server.com/synthetic/${ecgId}.png"
+    }
+
+    private fun String.toEcgStatus(): EcgStatus {
+        return when (this) {
+            "PENDING" -> EcgStatus.DIGITIZING
+            else -> runCatching { EcgStatus.valueOf(this) }.getOrDefault(EcgStatus.ERROR)
+        }
     }
 }
