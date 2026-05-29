@@ -13,7 +13,7 @@ import com.rimuru.android.rhythmlens.data.local.entity.PatientEntity
         EcgRecordEntity::class,
         PatientEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
