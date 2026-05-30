@@ -13,6 +13,7 @@
     <string name="delete_record">Удалить запись</string>
     <string name="cancel">Отмена</string>
     <string name="delete">Удалить</string>
+    <string name="not_specified">Не указано</string>
 
     <string name="screen_comparison">Сравнение ЭКГ</string>
     <string name="screen_scan">Съёмка ЭКГ</string>
@@ -91,6 +92,16 @@
     <string name="doctor_conclusion_empty">Заключение пока не добавлено. Для роли врача здесь будет доступно создание PDF-отчёта.</string>
     <string name="delete_ecg_dialog_title">Удалить запись ЭКГ?</string>
     <string name="delete_ecg_dialog_body">Запись будет удалена из локальной базы. Это действие нельзя отменить.</string>
+
+    <string name="profile_account">Аккаунт</string>
+    <string name="profile_full_name">ФИО</string>
+    <string name="profile_email">Email</string>
+    <string name="profile_current_role">Текущая роль</string>
+    <string name="profile_selected_patient">Выбранный пациент</string>
+    <string name="profile_dev_role_switcher">Режим роли</string>
+    <string name="profile_dev_role_switcher_description">Временный переключатель для проверки интерфейса врача и пациента до подключения авторизации.</string>
+    <string name="role_patient">Пациент</string>
+    <string name="role_doctor">Врач</string>
 
     <string name="lead_i">I</string>
     <string name="lead_ii">II</string>
