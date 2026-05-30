@@ -46,9 +46,6 @@ fun AppNavHost() {
                     navController.navigate(
                         ExportDestination(ecgId = ecgId)
                     )
-                },
-                onOpenDoctorConclusion = {
-                    // TODO: открыть экран или диалог заключения врача
                 }
             )
         }
