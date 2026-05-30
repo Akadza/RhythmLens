@@ -12,58 +12,73 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.rimuru.android.rhythmlens.R
+import com.rimuru.android.rhythmlens.domain.model.UserRole
 
 @Composable
 fun BottomNavigationBar(
     currentRoute: String?,
+    role: UserRole?,
     onNavigate: (BottomNavDestination) -> Unit
 ) {
-    val items = listOf(
-        BottomNavItem(
-            destination = BottomNavDestination.Home,
-            route = BottomNavDestination.Home::class.qualifiedName,
-            label = stringResource(R.string.home),
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.Home,
-                    contentDescription = null
-                )
-            }
-        ),
-        BottomNavItem(
-            destination = BottomNavDestination.History,
-            route = BottomNavDestination.History::class.qualifiedName,
-            label = stringResource(R.string.history),
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.History,
-                    contentDescription = null
-                )
-            }
-        ),
-        BottomNavItem(
-            destination = BottomNavDestination.Patients,
-            route = BottomNavDestination.Patients::class.qualifiedName,
-            label = stringResource(R.string.patients),
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.Person,
-                    contentDescription = null
-                )
-            }
-        ),
-        BottomNavItem(
-            destination = BottomNavDestination.Profile,
-            route = BottomNavDestination.Profile::class.qualifiedName,
-            label = stringResource(R.string.profile),
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.AccountCircle,
-                    contentDescription = null
-                )
-            }
+    val items = buildList {
+        add(
+            BottomNavItem(
+                destination = BottomNavDestination.Home,
+                route = BottomNavDestination.Home::class.qualifiedName,
+                label = stringResource(R.string.home),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Home,
+                        contentDescription = null
+                    )
+                }
+            )
         )
-    )
+
+        add(
+            BottomNavItem(
+                destination = BottomNavDestination.History,
+                route = BottomNavDestination.History::class.qualifiedName,
+                label = stringResource(R.string.history),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.History,
+                        contentDescription = null
+                    )
+                }
+            )
+        )
+
+        if (role == UserRole.DOCTOR) {
+            add(
+                BottomNavItem(
+                    destination = BottomNavDestination.Patients,
+                    route = BottomNavDestination.Patients::class.qualifiedName,
+                    label = stringResource(R.string.patients),
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = null
+                        )
+                    }
+                )
+            )
+        }
+
+        add(
+            BottomNavItem(
+                destination = BottomNavDestination.Profile,
+                route = BottomNavDestination.Profile::class.qualifiedName,
+                label = stringResource(R.string.profile),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.AccountCircle,
+                        contentDescription = null
+                    )
+                }
+            )
+        )
+    }
 
     NavigationBar {
         items.forEach { item ->
