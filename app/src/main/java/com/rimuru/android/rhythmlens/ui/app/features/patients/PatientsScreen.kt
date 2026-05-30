@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -53,7 +54,15 @@ fun PatientsScreen(
         ) {
             item {
                 PatientsHeaderCard(
+                    inviteCodeInput = state.inviteCodeInput,
                     isAddingPatient = state.isAddingPatient,
+                    isAttachingPatient = state.isAttachingPatient,
+                    onInviteCodeChange = { value ->
+                        onEvent(PatientsEvent.InviteCodeChanged(value))
+                    },
+                    onAttachPatientClick = {
+                        onEvent(PatientsEvent.AttachPatientClicked)
+                    },
                     onAddTestPatientClick = {
                         onEvent(PatientsEvent.AddTestPatientClicked)
                     }
@@ -93,7 +102,11 @@ fun PatientsScreen(
 
 @Composable
 private fun PatientsHeaderCard(
+    inviteCodeInput: String,
     isAddingPatient: Boolean,
+    isAttachingPatient: Boolean,
+    onInviteCodeChange: (String) -> Unit,
+    onAttachPatientClick: () -> Unit,
     onAddTestPatientClick: () -> Unit
 ) {
     Card(
@@ -116,6 +129,33 @@ private fun PatientsHeaderCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            OutlinedTextField(
+                value = inviteCodeInput,
+                onValueChange = onInviteCodeChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = {
+                    Text(text = stringResource(R.string.patient_invite_code))
+                },
+                placeholder = {
+                    Text(text = stringResource(R.string.patient_invite_code_hint))
+                }
+            )
+
+            Button(
+                onClick = onAttachPatientClick,
+                enabled = !isAttachingPatient && inviteCodeInput.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (isAttachingPatient) {
+                        stringResource(R.string.processing)
+                    } else {
+                        stringResource(R.string.attach_patient_by_code)
+                    }
+                )
+            }
 
             Button(
                 onClick = onAddTestPatientClick,
