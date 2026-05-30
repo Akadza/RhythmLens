@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.rimuru.android.rhythmlens.data.local.RhythmLensDatabase
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
+import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,5 +31,10 @@ object DatabaseModule {
     @Provides
     fun provideEcgDao(database: RhythmLensDatabase): EcgDao {
         return database.ecgDao()
+    }
+
+    @Provides
+    fun provideEcgSignalDao(database: RhythmLensDatabase): EcgSignalDao {
+        return database.ecgSignalDao()
     }
 }
