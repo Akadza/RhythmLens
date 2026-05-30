@@ -5,10 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -18,7 +21,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
-    private val getEcgListUseCase: GetEcgListUseCase
+    private val getEcgListUseCase: GetEcgListUseCase,
+    private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HistoryUiState(isLoading = true))
@@ -49,7 +53,12 @@ class HistoryViewModel @Inject constructor(
                 state.copy(isLoading = true, errorMessage = null)
             }
 
-            getEcgListUseCase(DEFAULT_PATIENT_ID)
+            observeSelectedPatientIdUseCase()
+                .flatMapLatest { patientId ->
+                    patientId?.let {
+                        getEcgListUseCase(it)
+                    } ?: flowOf(emptyList())
+                }
                 .catch { throwable ->
                     _uiState.update { state ->
                         state.copy(
@@ -114,7 +123,6 @@ class HistoryViewModel @Inject constructor(
     }
 
     private companion object {
-        const val DEFAULT_PATIENT_ID = "temp-patient-id"
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
