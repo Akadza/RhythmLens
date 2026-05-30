@@ -2,7 +2,9 @@ package com.rimuru.android.rhythmlens.di
 
 import com.rimuru.android.rhythmlens.data.repository.DataStoreSessionRepositoryImpl
 import com.rimuru.android.rhythmlens.data.repository.EcgRepositoryImpl
+import com.rimuru.android.rhythmlens.data.repository.PatientRepositoryImpl
 import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
+import com.rimuru.android.rhythmlens.domain.repository.PatientRepository
 import com.rimuru.android.rhythmlens.domain.repository.SessionRepository
 import dagger.Binds
 import dagger.Module
@@ -25,4 +27,10 @@ abstract class RepositoryModule {
     abstract fun bindSessionRepository(
         impl: DataStoreSessionRepositoryImpl
     ): SessionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPatientRepository(
+        impl: PatientRepositoryImpl
+    ): PatientRepository
 }
