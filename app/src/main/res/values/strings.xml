@@ -32,6 +32,7 @@
     <string name="last_ecg_empty">ЭКГ ещё не загружались.</string>
     <string name="records_count">Записей</string>
     <string name="doctors_count">Врачей</string>
+    <string name="selected_patient_template">Пациент: %1$s</string>
     <string name="add_ecg_description">Выберите источник данных. PDF используется только для экспорта отчёта, не для импорта.</string>
     <string name="take_photo">Сделать фото</string>
     <string name="choose_from_gallery">Выбрать из галереи</string>
@@ -96,6 +97,9 @@
     <string name="doctor_conclusion_text_label">Текст заключения</string>
     <string name="doctor_conclusion_text_hint">Введите клиническое заключение по ЭКГ</string>
     <string name="doctor_conclusion_updated_template">Обновлено: %1$s</string>
+    <string name="doctor_conclusion_exists">Заключение есть</string>
+    <string name="doctor_conclusion_missing">Заключения нет</string>
+    <string name="share_report">Поделиться отчётом</string>
     <string name="delete_ecg_dialog_title">Удалить запись ЭКГ?</string>
     <string name="delete_ecg_dialog_body">Запись будет удалена из локальной базы. Это действие нельзя отменить.</string>
 
