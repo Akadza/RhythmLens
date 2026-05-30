@@ -2,6 +2,7 @@ package com.rimuru.android.rhythmlens.ui.app.features.home
 
 data class HomeUiState(
     val userName: String = "",
+    val selectedPatientId: String? = null,
     val totalRecords: Int = 0,
     val linkedDoctorCount: Int = 0,
     val lastRecord: LastEcgUi? = null,
