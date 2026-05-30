@@ -4,8 +4,10 @@ data class PatientsUiState(
     val doctorId: String? = null,
     val selectedPatientId: String? = null,
     val patients: List<PatientItemUi> = emptyList(),
+    val inviteCodeInput: String = "",
     val isLoading: Boolean = false,
     val isAddingPatient: Boolean = false,
+    val isAttachingPatient: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -19,5 +21,7 @@ data class PatientItemUi(
 
 sealed interface PatientsEvent {
     data object AddTestPatientClicked : PatientsEvent
+    data object AttachPatientClicked : PatientsEvent
+    data class InviteCodeChanged(val value: String) : PatientsEvent
     data class PatientClicked(val patientId: String) : PatientsEvent
 }
