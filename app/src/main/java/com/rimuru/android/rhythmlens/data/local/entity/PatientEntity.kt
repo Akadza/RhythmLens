@@ -8,10 +8,11 @@ import java.time.LocalDate
 data class PatientEntity(
     @PrimaryKey
     val id: String,
-    val userId: String,
+    val userId: String?,
     val fullName: String,
     val dateOfBirth: LocalDate?,
     val gender: String?,
     val phone: String?,
-    val doctorId: String?
+    val doctorId: String?,
+    val inviteCode: String
 )
