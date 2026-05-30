@@ -25,6 +25,7 @@ sealed interface EcgDetailEffect {
     data class NavigateToComparison(val ecgId: String) : EcgDetailEffect
     data class NavigateToSyntheticImage(val ecgId: String) : EcgDetailEffect
     data class NavigateToExport(val ecgId: String) : EcgDetailEffect
+    data class ShareReport(val text: String) : EcgDetailEffect
 }
 
 data class EcgDetailUiState(
