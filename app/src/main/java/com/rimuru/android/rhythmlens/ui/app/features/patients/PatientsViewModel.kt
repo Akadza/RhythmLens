@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rimuru.android.rhythmlens.domain.model.Gender
 import com.rimuru.android.rhythmlens.domain.model.Patient
 import com.rimuru.android.rhythmlens.domain.model.UserRole
+import com.rimuru.android.rhythmlens.domain.usecase.AttachPatientByInviteCodeUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.GetPatientsForDoctorUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
@@ -29,7 +30,8 @@ class PatientsViewModel @Inject constructor(
     private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
     private val getPatientsForDoctorUseCase: GetPatientsForDoctorUseCase,
     private val savePatientUseCase: SavePatientUseCase,
-    private val selectPatientUseCase: SelectPatientUseCase
+    private val selectPatientUseCase: SelectPatientUseCase,
+    private val attachPatientByInviteCodeUseCase: AttachPatientByInviteCodeUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PatientsUiState(isLoading = true))
@@ -43,6 +45,19 @@ class PatientsViewModel @Inject constructor(
         when (event) {
             PatientsEvent.AddTestPatientClicked -> {
                 addTestPatient()
+            }
+
+            PatientsEvent.AttachPatientClicked -> {
+                attachPatientByCode()
+            }
+
+            is PatientsEvent.InviteCodeChanged -> {
+                _uiState.update { state ->
+                    state.copy(
+                        inviteCodeInput = event.value.uppercase(),
+                        errorMessage = null
+                    )
+                }
             }
 
             is PatientsEvent.PatientClicked -> {
@@ -102,7 +117,7 @@ class PatientsViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { state ->
-                state.copy(isAddingPatient = true)
+                state.copy(isAddingPatient = true, errorMessage = null)
             }
 
             runCatching {
@@ -119,6 +134,40 @@ class PatientsViewModel @Inject constructor(
 
             _uiState.update { state ->
                 state.copy(isAddingPatient = false)
+            }
+        }
+    }
+
+    private fun attachPatientByCode() {
+        val inviteCode = _uiState.value.inviteCodeInput.trim()
+        if (inviteCode.isBlank()) {
+            _uiState.update { state ->
+                state.copy(errorMessage = "Введите код пациента")
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(isAttachingPatient = true, errorMessage = null)
+            }
+
+            attachPatientByInviteCodeUseCase(inviteCode)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(inviteCodeInput = "")
+                    }
+                }
+                .onFailure { throwable ->
+                    _uiState.update { state ->
+                        state.copy(
+                            errorMessage = throwable.message ?: "Не удалось добавить пациента по коду"
+                        )
+                    }
+                }
+
+            _uiState.update { state ->
+                state.copy(isAttachingPatient = false)
             }
         }
     }
