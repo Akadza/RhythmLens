@@ -103,7 +103,10 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Large)
         ) {
             item {
-                WelcomeCard(userName = state.userName)
+                WelcomeCard(
+                    userName = state.userName,
+                    selectedPatientName = state.selectedPatientName
+                )
             }
 
             item {
@@ -173,7 +176,8 @@ fun HomeScreen(
 
 @Composable
 private fun WelcomeCard(
-    userName: String
+    userName: String,
+    selectedPatientName: String?
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -189,6 +193,15 @@ private fun WelcomeCard(
                 text = stringResource(R.string.home_greeting_template, userName),
                 style = MaterialTheme.typography.titleLarge
             )
+
+            if (!selectedPatientName.isNullOrBlank()) {
+                Text(
+                    text = stringResource(R.string.selected_patient_template, selectedPatientName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
 
             Text(
                 text = stringResource(R.string.home_description),
