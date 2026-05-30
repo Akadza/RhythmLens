@@ -27,6 +27,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,7 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import com.rimuru.android.rhythmlens.R
+import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.AiAnalysisCard
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.EcgLeadChart
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSize
@@ -168,7 +171,16 @@ fun EcgDetailScreen(
                 )
             }
 
-            item { DoctorConclusionPreview() }
+            item {
+                DoctorConclusionCard(
+                    conclusion = state.doctorConclusion,
+                    currentUserRole = state.currentUserRole,
+                    onEditClick = { onEvent(EcgDetailEvent.DoctorConclusionEditClicked) },
+                    onTextChange = { text -> onEvent(EcgDetailEvent.DoctorConclusionTextChanged(text)) },
+                    onSaveClick = { onEvent(EcgDetailEvent.DoctorConclusionSaveClicked) },
+                    onCancelClick = { onEvent(EcgDetailEvent.DoctorConclusionCancelClicked) }
+                )
+            }
         }
     }
 
@@ -450,7 +462,16 @@ private fun LeadOriginUi.label(): String {
 }
 
 @Composable
-private fun DoctorConclusionPreview() {
+private fun DoctorConclusionCard(
+    conclusion: DoctorConclusionUi,
+    currentUserRole: UserRole?,
+    onEditClick: () -> Unit,
+    onTextChange: (String) -> Unit,
+    onSaveClick: () -> Unit,
+    onCancelClick: () -> Unit
+) {
+    val canEdit = currentUserRole == UserRole.DOCTOR
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -459,18 +480,93 @@ private fun DoctorConclusionPreview() {
     ) {
         Column(
             modifier = Modifier.padding(RhythmSpacing.ExtraLarge),
-            verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Small)
+            verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Medium)
         ) {
-            Text(
-                text = stringResource(R.string.doctor_conclusion),
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.doctor_conclusion),
+                    style = MaterialTheme.typography.titleMedium
+                )
 
-            Text(
-                text = stringResource(R.string.doctor_conclusion_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                if (canEdit && !conclusion.isEditing) {
+                    TextButton(onClick = onEditClick) {
+                        Text(
+                            text = if (conclusion.text.isBlank()) {
+                                stringResource(R.string.add)
+                            } else {
+                                stringResource(R.string.edit)
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (conclusion.updatedAt != null && !conclusion.isEditing) {
+                Text(
+                    text = stringResource(R.string.doctor_conclusion_updated_template, conclusion.updatedAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (conclusion.isEditing) {
+                OutlinedTextField(
+                    value = conclusion.draftText,
+                    onValueChange = onTextChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 5,
+                    label = {
+                        Text(text = stringResource(R.string.doctor_conclusion_text_label))
+                    },
+                    placeholder = {
+                        Text(text = stringResource(R.string.doctor_conclusion_text_hint))
+                    }
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(RhythmSpacing.Small)
+                ) {
+                    TextButton(
+                        enabled = !conclusion.isSaving,
+                        onClick = onCancelClick,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
+
+                    Button(
+                        enabled = !conclusion.isSaving && conclusion.draftText.isNotBlank(),
+                        onClick = onSaveClick,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = if (conclusion.isSaving) {
+                                stringResource(R.string.processing)
+                            } else {
+                                stringResource(R.string.save)
+                            }
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = conclusion.text.ifBlank {
+                        stringResource(R.string.doctor_conclusion_empty)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (conclusion.text.isBlank()) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    textAlign = TextAlign.Start
+                )
+            }
         }
     }
 }
