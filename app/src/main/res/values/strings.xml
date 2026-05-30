@@ -13,6 +13,9 @@
     <string name="delete_record">Удалить запись</string>
     <string name="cancel">Отмена</string>
     <string name="delete">Удалить</string>
+    <string name="add">Добавить</string>
+    <string name="edit">Изменить</string>
+    <string name="save">Сохранить</string>
     <string name="not_specified">Не указано</string>
 
     <string name="screen_comparison">Сравнение ЭКГ</string>
@@ -89,7 +92,10 @@
 
     <string name="synthetic_ecg">Синтетическая ЭКГ</string>
     <string name="doctor_conclusion">Заключение врача</string>
-    <string name="doctor_conclusion_empty">Заключение пока не добавлено. Для роли врача здесь будет доступно создание PDF-отчёта.</string>
+    <string name="doctor_conclusion_empty">Заключение пока не добавлено.</string>
+    <string name="doctor_conclusion_text_label">Текст заключения</string>
+    <string name="doctor_conclusion_text_hint">Введите клиническое заключение по ЭКГ</string>
+    <string name="doctor_conclusion_updated_template">Обновлено: %1$s</string>
     <string name="delete_ecg_dialog_title">Удалить запись ЭКГ?</string>
     <string name="delete_ecg_dialog_body">Запись будет удалена из локальной базы. Это действие нельзя отменить.</string>
 
