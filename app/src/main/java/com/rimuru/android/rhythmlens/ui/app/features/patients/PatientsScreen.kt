@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.rimuru.android.rhythmlens.R
-import com.rimuru.android.rhythmlens.ui.components.EmptyState
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,10 +72,7 @@ fun PatientsScreen(
 
             if (!state.isLoading && state.patients.isEmpty()) {
                 item {
-                    EmptyState(
-                        title = stringResource(R.string.patients_empty_title),
-                        body = stringResource(R.string.patients_empty_body)
-                    )
+                    PatientsEmptyCard()
                 }
             }
 
@@ -134,6 +130,32 @@ private fun PatientsHeaderCard(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PatientsEmptyCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(RhythmSpacing.ExtraLarge),
+            verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Small)
+        ) {
+            Text(
+                text = stringResource(R.string.patients_empty_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = stringResource(R.string.patients_empty_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
