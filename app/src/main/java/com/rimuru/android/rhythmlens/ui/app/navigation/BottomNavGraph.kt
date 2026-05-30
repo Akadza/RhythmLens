@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.app.features.history.HistoryRoute
 import com.rimuru.android.rhythmlens.ui.app.features.home.HomeRoute
+import com.rimuru.android.rhythmlens.ui.app.features.profile.ProfileRoute
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
 fun NavGraphBuilder.bottomNavGraph(
@@ -56,9 +57,7 @@ fun NavGraphBuilder.bottomNavGraph(
     }
 
     composable<BottomNavDestination.Profile> {
-        PlaceholderScreen(
-            title = stringResource(R.string.profile)
-        )
+        ProfileRoute()
     }
 }
 
