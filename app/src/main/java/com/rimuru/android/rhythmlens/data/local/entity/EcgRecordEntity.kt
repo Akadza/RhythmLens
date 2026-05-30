@@ -11,11 +11,14 @@ data class EcgRecordEntity(
     val patientId: String,
     val recordedAt: Instant,
     val originalImageUrl: String?,
-    val digitizedSignalJson: String,
     val heartRate: Int?,
     val status: String,
     val processingMessage: String?,
     val errorMessage: String?,
     val doctorId: String?,
+    val samplingRate: Int?,
+    val durationSeconds: Double?,
+    val digitizedLeadCount: Int,
+    val reconstructedLeadCount: Int,
     val createdAt: Instant = Instant.now()
 )
