@@ -4,19 +4,25 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.rimuru.android.rhythmlens.domain.model.DoctorConclusion
 import com.rimuru.android.rhythmlens.domain.model.EcgLead
 import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
 import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
+import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.domain.usecase.DeleteEcgUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgByIdUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObserveDoctorConclusionUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.SaveDoctorConclusionUseCase
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
 import com.rimuru.android.rhythmlens.ui.navigation.EcgDetailDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,7 +36,10 @@ import kotlin.math.sin
 class EcgDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getEcgByIdUseCase: GetEcgByIdUseCase,
-    private val deleteEcgUseCase: DeleteEcgUseCase
+    private val deleteEcgUseCase: DeleteEcgUseCase,
+    private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
+    private val observeDoctorConclusionUseCase: ObserveDoctorConclusionUseCase,
+    private val saveDoctorConclusionUseCase: SaveDoctorConclusionUseCase
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<EcgDetailDestination>()
@@ -43,7 +52,7 @@ class EcgDetailViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     init {
-        loadEcg()
+        observeDetail()
     }
 
     fun onEvent(event: EcgDetailEvent) {
@@ -64,8 +73,27 @@ class EcgDetailViewModel @Inject constructor(
                 _effect.trySend(EcgDetailEffect.NavigateToExport(ecgId))
             }
 
-            EcgDetailEvent.DoctorConclusionClicked -> {
-                _effect.trySend(EcgDetailEffect.OpenDoctorConclusion(ecgId))
+            EcgDetailEvent.DoctorConclusionClicked,
+            EcgDetailEvent.DoctorConclusionEditClicked -> {
+                startEditingConclusion()
+            }
+
+            EcgDetailEvent.DoctorConclusionSaveClicked -> {
+                saveConclusion()
+            }
+
+            EcgDetailEvent.DoctorConclusionCancelClicked -> {
+                cancelEditingConclusion()
+            }
+
+            is EcgDetailEvent.DoctorConclusionTextChanged -> {
+                _uiState.update { state ->
+                    state.copy(
+                        doctorConclusion = state.doctorConclusion.copy(
+                            draftText = event.text
+                        )
+                    )
+                }
             }
 
             EcgDetailEvent.DeleteClicked -> {
@@ -92,9 +120,15 @@ class EcgDetailViewModel @Inject constructor(
         }
     }
 
-    private fun loadEcg() {
+    private fun observeDetail() {
         viewModelScope.launch {
-            getEcgByIdUseCase(ecgId)
+            combine(
+                getEcgByIdUseCase(ecgId),
+                observeDoctorConclusionUseCase(ecgId),
+                observeCurrentUserUseCase()
+            ) { record, conclusion, user ->
+                Triple(record, conclusion, user?.role)
+            }
                 .catch { throwable ->
                     _uiState.update { state ->
                         state.copy(
@@ -103,15 +137,85 @@ class EcgDetailViewModel @Inject constructor(
                         )
                     }
                 }
-                .collect { record ->
+                .collect { (record, conclusion, role) ->
                     _uiState.update { currentState ->
-                        record?.toUiState(previousState = currentState)
-                            ?: currentState.copy(
-                                isLoading = false,
-                                errorMessage = "Запись ЭКГ не найдена"
-                            )
+                        record?.toUiState(
+                            previousState = currentState,
+                            conclusion = conclusion,
+                            role = role
+                        ) ?: currentState.copy(
+                            isLoading = false,
+                            errorMessage = "Запись ЭКГ не найдена"
+                        )
                     }
                 }
+        }
+    }
+
+    private fun startEditingConclusion() {
+        if (_uiState.value.currentUserRole != UserRole.DOCTOR) {
+            return
+        }
+
+        _uiState.update { state ->
+            state.copy(
+                doctorConclusion = state.doctorConclusion.copy(
+                    draftText = state.doctorConclusion.text,
+                    isEditing = true
+                )
+            )
+        }
+    }
+
+    private fun cancelEditingConclusion() {
+        _uiState.update { state ->
+            state.copy(
+                doctorConclusion = state.doctorConclusion.copy(
+                    draftText = state.doctorConclusion.text,
+                    isEditing = false,
+                    isSaving = false
+                )
+            )
+        }
+    }
+
+    private fun saveConclusion() {
+        val state = _uiState.value
+        if (state.currentUserRole != UserRole.DOCTOR) {
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { currentState ->
+                currentState.copy(
+                    doctorConclusion = currentState.doctorConclusion.copy(isSaving = true)
+                )
+            }
+
+            runCatching {
+                val existingConclusion = state.doctorConclusion.toDomainOrNull(ecgId)
+                saveDoctorConclusionUseCase(
+                    ecgId = ecgId,
+                    text = state.doctorConclusion.draftText,
+                    existingConclusion = existingConclusion
+                )
+            }.onSuccess {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        doctorConclusion = currentState.doctorConclusion.copy(
+                            isSaving = false,
+                            isEditing = false
+                        )
+                    )
+                }
+            }.onFailure { throwable ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        errorMessage = throwable.message ?: "Не удалось сохранить заключение врача",
+                        doctorConclusion = currentState.doctorConclusion.copy(isSaving = false)
+                    )
+                }
+            }
         }
     }
 
@@ -143,7 +247,11 @@ class EcgDetailViewModel @Inject constructor(
         }
     }
 
-    private fun EcgRecord.toUiState(previousState: EcgDetailUiState): EcgDetailUiState {
+    private fun EcgRecord.toUiState(
+        previousState: EcgDetailUiState,
+        conclusion: DoctorConclusion?,
+        role: UserRole?
+    ): EcgDetailUiState {
         val fallback = sampleInitialState(id)
         val leads = buildLeadSummaryList(this)
         val digitizedLeads = leads.count { lead ->
@@ -158,6 +266,7 @@ class EcgDetailViewModel @Inject constructor(
         val samplingRate = digitizedSignal?.samplingRate?.let { rate ->
             "$rate Гц"
         } ?: fallback.signalInfo.samplingRate
+        val conclusionUi = conclusion.toUi(previousState.doctorConclusion)
 
         return fallback.copy(
             ecgId = id,
@@ -169,11 +278,46 @@ class EcgDetailViewModel @Inject constructor(
                 reconstructedLeads = reconstructedLeads
             ),
             leads = leads,
+            currentUserRole = role,
+            doctorConclusion = conclusionUi,
             isLoading = false,
             errorMessage = null,
             signalMode = previousState.signalMode,
             isDeleteDialogVisible = previousState.isDeleteDialogVisible,
             isDeleting = previousState.isDeleting
+        )
+    }
+
+    private fun DoctorConclusion?.toUi(previous: DoctorConclusionUi): DoctorConclusionUi {
+        if (this == null) {
+            return previous.copy(
+                text = "",
+                draftText = if (previous.isEditing) previous.draftText else "",
+                doctorId = null,
+                updatedAt = null
+            )
+        }
+
+        val updatedAtText = DATE_FORMATTER.format(updatedAt.atZone(ZoneId.systemDefault()))
+
+        return previous.copy(
+            text = text,
+            draftText = if (previous.isEditing) previous.draftText else text,
+            doctorId = doctorId,
+            updatedAt = updatedAtText
+        )
+    }
+
+    private fun DoctorConclusionUi.toDomainOrNull(ecgId: String): DoctorConclusion? {
+        val doctorId = doctorId ?: return null
+        val updatedAtInstant = java.time.Instant.now()
+
+        return DoctorConclusion(
+            ecgId = ecgId,
+            doctorId = doctorId,
+            text = text,
+            createdAt = updatedAtInstant,
+            updatedAt = updatedAtInstant
         )
     }
 
