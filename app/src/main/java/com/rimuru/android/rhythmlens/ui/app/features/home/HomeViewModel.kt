@@ -9,6 +9,8 @@ import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.SaveEcgUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -16,6 +18,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,7 +35,9 @@ import kotlin.math.sin
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getEcgListUseCase: GetEcgListUseCase,
-    private val saveEcgUseCase: SaveEcgUseCase
+    private val saveEcgUseCase: SaveEcgUseCase,
+    private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
+    private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(initialState())
@@ -85,7 +92,26 @@ class HomeViewModel @Inject constructor(
 
     private fun observeDashboard() {
         viewModelScope.launch {
-            getEcgListUseCase(DEFAULT_PATIENT_ID)
+            combine(
+                observeCurrentUserUseCase(),
+                observeSelectedPatientIdUseCase()
+            ) { user, selectedPatientId ->
+                user to selectedPatientId
+            }
+                .flatMapLatest { (user, selectedPatientId) ->
+                    _uiState.update { state ->
+                        state.copy(
+                            userName = user?.fullName.orEmpty(),
+                            selectedPatientId = selectedPatientId,
+                            totalRecords = 0,
+                            lastRecord = null
+                        )
+                    }
+
+                    selectedPatientId?.let { patientId ->
+                        getEcgListUseCase(patientId)
+                    } ?: flowOf(emptyList())
+                }
                 .catch {
                     _uiState.update { state ->
                         state.copy(
@@ -110,13 +136,15 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun createTestEcg() {
+        val patientId = _uiState.value.selectedPatientId ?: return
+
         viewModelScope.launch {
             _uiState.update { state ->
                 state.copy(isCreatingTestEcg = true)
             }
 
             runCatching {
-                val record = buildInitialTestEcgRecord()
+                val record = buildInitialTestEcgRecord(patientId = patientId)
 
                 saveEcgUseCase(record.copy(status = EcgStatus.UPLOADING))
                 delay(PROCESSING_STEP_DELAY_MS)
@@ -148,7 +176,7 @@ class HomeViewModel @Inject constructor(
                     state.copy(isCreatingTestEcg = false)
                 }
 
-                val failedRecord = buildInitialTestEcgRecord().copy(
+                val failedRecord = buildInitialTestEcgRecord(patientId = patientId).copy(
                     status = EcgStatus.ERROR,
                     errorMessage = throwable.message ?: "Не удалось создать тестовую ЭКГ"
                 )
@@ -186,10 +214,10 @@ class HomeViewModel @Inject constructor(
         )
     }
 
-    private fun buildInitialTestEcgRecord(): EcgRecord {
+    private fun buildInitialTestEcgRecord(patientId: String): EcgRecord {
         return EcgRecord(
             id = UUID.randomUUID().toString(),
-            patientId = DEFAULT_PATIENT_ID,
+            patientId = patientId,
             recordedAt = Instant.now(),
             originalImageUrl = null,
             digitizedSignal = null,
@@ -250,7 +278,6 @@ class HomeViewModel @Inject constructor(
     }
 
     private companion object {
-        const val DEFAULT_PATIENT_ID = "temp-patient-id"
         const val SAMPLING_RATE = 500
         const val DURATION_SECONDS = 10.0
         const val HEART_RATE_HZ = 1.2
@@ -262,7 +289,8 @@ class HomeViewModel @Inject constructor(
 
 private fun initialState(): HomeUiState {
     return HomeUiState(
-        userName = "Александр",
+        userName = "",
+        selectedPatientId = null,
         totalRecords = 0,
         linkedDoctorCount = 0,
         lastRecord = null
