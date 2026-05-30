@@ -26,7 +26,8 @@ data class EcgHistoryItemUi(
     val probability: Int,
     val digitizedLeads: Int,
     val reconstructedLeads: Int,
-    val status: EcgProcessingStatusUi
+    val status: EcgProcessingStatusUi,
+    val hasDoctorConclusion: Boolean
 )
 
 enum class EcgProcessingStatusUi {
@@ -109,6 +110,19 @@ fun EcgListItem(
                     }
                 )
             }
+
+            AssistChip(
+                onClick = {},
+                label = {
+                    Text(
+                        text = if (item.hasDoctorConclusion) {
+                            stringResource(R.string.doctor_conclusion_exists)
+                        } else {
+                            stringResource(R.string.doctor_conclusion_missing)
+                        }
+                    )
+                }
+            )
         }
     }
 }
