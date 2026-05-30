@@ -10,11 +10,14 @@ class SwitchUserRoleUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(role: UserRole) {
         val currentUser = sessionRepository.observeCurrentUser().first() ?: return
-        val selectedPatientId = sessionRepository.observeSelectedPatientId().first()
+        val selectedPatientId = when (role) {
+            UserRole.PATIENT -> DEFAULT_PATIENT_ID
+            UserRole.DOCTOR -> sessionRepository.observeSelectedPatientId().first() ?: DEFAULT_PATIENT_ID
+        }
 
         sessionRepository.saveSession(
             user = currentUser.copy(role = role),
-            selectedPatientId = selectedPatientId ?: DEFAULT_PATIENT_ID
+            selectedPatientId = selectedPatientId
         )
     }
 
