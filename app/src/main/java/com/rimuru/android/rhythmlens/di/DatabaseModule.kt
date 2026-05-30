@@ -3,6 +3,7 @@ package com.rimuru.android.rhythmlens.di
 import android.content.Context
 import androidx.room.Room
 import com.rimuru.android.rhythmlens.data.local.RhythmLensDatabase
+import com.rimuru.android.rhythmlens.data.local.dao.DoctorConclusionDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
 import com.rimuru.android.rhythmlens.data.local.dao.PatientDao
@@ -42,5 +43,10 @@ object DatabaseModule {
     @Provides
     fun providePatientDao(database: RhythmLensDatabase): PatientDao {
         return database.patientDao()
+    }
+
+    @Provides
+    fun provideDoctorConclusionDao(database: RhythmLensDatabase): DoctorConclusionDao {
+        return database.doctorConclusionDao()
     }
 }
