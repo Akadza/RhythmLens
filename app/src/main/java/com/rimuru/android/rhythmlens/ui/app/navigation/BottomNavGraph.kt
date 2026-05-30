@@ -1,22 +1,12 @@
 package com.rimuru.android.rhythmlens.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.app.features.history.HistoryRoute
 import com.rimuru.android.rhythmlens.ui.app.features.home.HomeRoute
+import com.rimuru.android.rhythmlens.ui.app.features.patients.PatientsRoute
 import com.rimuru.android.rhythmlens.ui.app.features.profile.ProfileRoute
-import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
 fun NavGraphBuilder.bottomNavGraph(
     rootNavController: NavHostController
@@ -51,29 +41,10 @@ fun NavGraphBuilder.bottomNavGraph(
     }
 
     composable<BottomNavDestination.Patients> {
-        PlaceholderScreen(
-            title = stringResource(R.string.patients)
-        )
+        PatientsRoute()
     }
 
     composable<BottomNavDestination.Profile> {
         ProfileRoute()
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(
-    title: String
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(RhythmSpacing.XLarge),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = stringResource(R.string.placeholder_screen_template, title),
-            style = MaterialTheme.typography.bodyLarge
-        )
     }
 }
