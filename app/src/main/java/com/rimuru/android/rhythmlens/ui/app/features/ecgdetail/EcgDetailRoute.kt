@@ -11,7 +11,6 @@ fun EcgDetailRoute(
     onNavigateToComparison: (String) -> Unit,
     onNavigateToSyntheticImage: (String) -> Unit,
     onNavigateToExport: (String) -> Unit,
-    onOpenDoctorConclusion: (String) -> Unit,
     viewModel: EcgDetailViewModel = hiltViewModel()
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
@@ -33,10 +32,6 @@ fun EcgDetailRoute(
 
                 is EcgDetailEffect.NavigateToExport -> {
                     onNavigateToExport(effect.ecgId)
-                }
-
-                is EcgDetailEffect.OpenDoctorConclusion -> {
-                    onOpenDoctorConclusion(effect.ecgId)
                 }
             }
         }
