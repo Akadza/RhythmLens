@@ -5,13 +5,18 @@ import androidx.lifecycle.viewModelScope
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObserveDoctorConclusionUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObservePatientByIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -22,7 +27,9 @@ import javax.inject.Inject
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val getEcgListUseCase: GetEcgListUseCase,
-    private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase
+    private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
+    private val observePatientByIdUseCase: ObservePatientByIdUseCase,
+    private val observeDoctorConclusionUseCase: ObserveDoctorConclusionUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HistoryUiState(isLoading = true))
@@ -55,9 +62,28 @@ class HistoryViewModel @Inject constructor(
 
             observeSelectedPatientIdUseCase()
                 .flatMapLatest { patientId ->
-                    patientId?.let {
-                        getEcgListUseCase(it)
-                    } ?: flowOf(emptyList())
+                    patientId?.let { id ->
+                        combine(
+                            getEcgListUseCase(id),
+                            observePatientByIdUseCase(id)
+                        ) { records, patient ->
+                            records to patient?.fullName
+                        }.flatMapLatest { (records, patientName) ->
+                            observeConclusionFlags(records).map { conclusionFlags ->
+                                HistoryData(
+                                    records = records,
+                                    patientName = patientName,
+                                    conclusionFlags = conclusionFlags
+                                )
+                            }
+                        }
+                    } ?: flowOf(
+                        HistoryData(
+                            records = emptyList(),
+                            patientName = null,
+                            conclusionFlags = emptyMap()
+                        )
+                    )
                 }
                 .catch { throwable ->
                     _uiState.update { state ->
@@ -67,11 +93,16 @@ class HistoryViewModel @Inject constructor(
                         )
                     }
                 }
-                .collect { records ->
+                .collect { data ->
                     _uiState.update {
                         HistoryUiState(
                             isLoading = false,
-                            items = records.map { record -> record.toUi() },
+                            items = data.records.map { record ->
+                                record.toUi(
+                                    patientName = data.patientName ?: record.patientId,
+                                    hasDoctorConclusion = data.conclusionFlags[record.id] == true
+                                )
+                            },
                             errorMessage = null
                         )
                     }
@@ -79,13 +110,32 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    private fun EcgRecord.toUi(): EcgHistoryItemUi {
+    private fun observeConclusionFlags(records: List<EcgRecord>): Flow<Map<String, Boolean>> {
+        if (records.isEmpty()) {
+            return flowOf(emptyMap())
+        }
+
+        return combine(
+            records.map { record ->
+                observeDoctorConclusionUseCase(record.id).map { conclusion ->
+                    record.id to (conclusion != null)
+                }
+            }
+        ) { pairs ->
+            pairs.toMap()
+        }
+    }
+
+    private fun EcgRecord.toUi(
+        patientName: String,
+        hasDoctorConclusion: Boolean
+    ): EcgHistoryItemUi {
         val statusText = processingMessage ?: status.toDisplayText()
 
         return EcgHistoryItemUi(
             id = id,
             date = DATE_FORMATTER.format(recordedAt.atZone(ZoneId.systemDefault())),
-            patientName = patientId,
+            patientName = patientName,
             mainResult = if (status == EcgStatus.ERROR) {
                 errorMessage ?: statusText
             } else {
@@ -94,7 +144,8 @@ class HistoryViewModel @Inject constructor(
             probability = 0,
             digitizedLeads = digitizedSignal?.leads?.size ?: 0,
             reconstructedLeads = 0,
-            status = status.toUiStatus()
+            status = status.toUiStatus(),
+            hasDoctorConclusion = hasDoctorConclusion
         )
     }
 
@@ -126,3 +177,9 @@ class HistoryViewModel @Inject constructor(
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
+
+private data class HistoryData(
+    val records: List<EcgRecord>,
+    val patientName: String?,
+    val conclusionFlags: Map<String, Boolean>
+)
