@@ -41,11 +41,6 @@ fun AppNavHost() {
                     navController.navigate(
                         SyntheticImageDestination(ecgId = ecgId)
                     )
-                },
-                onNavigateToExport = { ecgId ->
-                    navController.navigate(
-                        ExportDestination(ecgId = ecgId)
-                    )
                 }
             )
         }
