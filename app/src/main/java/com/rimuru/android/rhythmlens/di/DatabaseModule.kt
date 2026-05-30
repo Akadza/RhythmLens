@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.rimuru.android.rhythmlens.data.local.RhythmLensDatabase
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
+import com.rimuru.android.rhythmlens.data.local.dao.PatientDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,5 +37,10 @@ object DatabaseModule {
     @Provides
     fun provideEcgSignalDao(database: RhythmLensDatabase): EcgSignalDao {
         return database.ecgSignalDao()
+    }
+
+    @Provides
+    fun providePatientDao(database: RhythmLensDatabase): PatientDao {
+        return database.patientDao()
     }
 }
