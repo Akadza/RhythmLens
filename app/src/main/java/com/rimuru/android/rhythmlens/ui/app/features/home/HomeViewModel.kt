@@ -10,6 +10,7 @@ import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObservePatientByIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.SaveEcgUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -37,7 +39,8 @@ class HomeViewModel @Inject constructor(
     private val getEcgListUseCase: GetEcgListUseCase,
     private val saveEcgUseCase: SaveEcgUseCase,
     private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
-    private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase
+    private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
+    private val observePatientByIdUseCase: ObservePatientByIdUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(initialState())
@@ -99,18 +102,27 @@ class HomeViewModel @Inject constructor(
                 user to selectedPatientId
             }
                 .flatMapLatest { (user, selectedPatientId) ->
-                    _uiState.update { state ->
-                        state.copy(
-                            userName = user?.fullName.orEmpty(),
-                            selectedPatientId = selectedPatientId,
-                            totalRecords = 0,
-                            lastRecord = null
-                        )
-                    }
+                    val patientNameFlow = selectedPatientId?.let { patientId ->
+                        observePatientByIdUseCase(patientId).map { patient ->
+                            patient?.fullName
+                        }
+                    } ?: flowOf(null)
 
-                    selectedPatientId?.let { patientId ->
-                        getEcgListUseCase(patientId)
-                    } ?: flowOf(emptyList())
+                    patientNameFlow.flatMapLatest { selectedPatientName ->
+                        _uiState.update { state ->
+                            state.copy(
+                                userName = user?.fullName.orEmpty(),
+                                selectedPatientId = selectedPatientId,
+                                selectedPatientName = selectedPatientName,
+                                totalRecords = 0,
+                                lastRecord = null
+                            )
+                        }
+
+                        selectedPatientId?.let { patientId ->
+                            getEcgListUseCase(patientId)
+                        } ?: flowOf(emptyList())
+                    }
                 }
                 .catch {
                     _uiState.update { state ->
@@ -291,6 +303,7 @@ private fun initialState(): HomeUiState {
     return HomeUiState(
         userName = "",
         selectedPatientId = null,
+        selectedPatientName = null,
         totalRecords = 0,
         linkedDoctorCount = 0,
         lastRecord = null
