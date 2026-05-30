@@ -70,7 +70,7 @@ class EcgDetailViewModel @Inject constructor(
             }
 
             EcgDetailEvent.ExportClicked -> {
-                _effect.trySend(EcgDetailEffect.NavigateToExport(ecgId))
+                _effect.trySend(EcgDetailEffect.ShareReport(buildShareReportText()))
             }
 
             EcgDetailEvent.DoctorConclusionClicked,
@@ -244,6 +244,38 @@ class EcgDetailViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun buildShareReportText(): String {
+        val state = _uiState.value
+        val topResult = state.probabilities.maxByOrNull { probability ->
+            probability.probability
+        }
+        val conclusionText = state.doctorConclusion.text.ifBlank {
+            "Заключение врача не добавлено"
+        }
+
+        return buildString {
+            appendLine("RhythmLens")
+            appendLine("Отчёт по ЭКГ")
+            appendLine()
+            appendLine("Дата ЭКГ: ${state.date}")
+            appendLine("ID записи: ${state.ecgId}")
+            appendLine("Длительность: ${state.signalInfo.duration}")
+            appendLine("Частота дискретизации: ${state.signalInfo.samplingRate}")
+            appendLine("Оцифровано: ${state.signalInfo.digitizedLeads} отведений")
+            appendLine("Восстановлено: ${state.signalInfo.reconstructedLeads} отведений")
+            appendLine()
+            appendLine("Результат ИИ-анализа:")
+            if (topResult == null) {
+                appendLine("Нет данных")
+            } else {
+                appendLine("${topResult.title}: ${topResult.probability}%")
+            }
+            appendLine()
+            appendLine("Заключение врача:")
+            appendLine(conclusionText)
         }
     }
 
