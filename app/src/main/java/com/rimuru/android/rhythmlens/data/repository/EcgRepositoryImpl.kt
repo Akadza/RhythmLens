@@ -11,6 +11,7 @@ import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import javax.inject.Inject
 
 class EcgRepositoryImpl @Inject constructor(
@@ -88,7 +89,7 @@ class EcgRepositoryImpl @Inject constructor(
     }
 
     override fun getEcgById(id: String): Flow<EcgRecord?> {
-        return ecgDao.getById(id).map { entity ->
+        return ecgDao.getById(id).mapLatest { entity ->
             entity?.let {
                 val signal = buildSignalForRecord(it)
                 it.toDomain(signal = signal)
