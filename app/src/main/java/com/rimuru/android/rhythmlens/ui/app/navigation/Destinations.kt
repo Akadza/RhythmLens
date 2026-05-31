@@ -3,6 +3,9 @@ package com.rimuru.android.rhythmlens.ui.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
+data object AuthDestination
+
+@Serializable
 data object MainDestination
 
 @Serializable
