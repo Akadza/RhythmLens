@@ -7,9 +7,11 @@ data class ProfileUiState(
     val email: String = "",
     val role: UserRole? = null,
     val selectedPatientId: String? = null,
-    val isRoleChanging: Boolean = false
+    val isRoleChanging: Boolean = false,
+    val isLoggingOut: Boolean = false
 )
 
 sealed interface ProfileEvent {
     data class RoleSelected(val role: UserRole) : ProfileEvent
+    data object LogoutClicked : ProfileEvent
 }
