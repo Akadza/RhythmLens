@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +61,15 @@ fun ProfileScreen(
                     isRoleChanging = state.isRoleChanging,
                     onRoleSelected = { role ->
                         onEvent(ProfileEvent.RoleSelected(role))
+                    }
+                )
+            }
+
+            item {
+                LogoutCard(
+                    isLoggingOut = state.isLoggingOut,
+                    onLogoutClick = {
+                        onEvent(ProfileEvent.LogoutClicked)
                     }
                 )
             }
@@ -154,6 +164,49 @@ private fun RoleSwitcherCard(
                     onClick = { onRoleSelected(UserRole.DOCTOR) },
                     label = {
                         Text(text = stringResource(R.string.role_doctor))
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogoutCard(
+    isLoggingOut: Boolean,
+    onLogoutClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(RhythmSpacing.ExtraLarge),
+            verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Medium)
+        ) {
+            Text(
+                text = stringResource(R.string.profile_session),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = stringResource(R.string.profile_logout_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Button(
+                onClick = onLogoutClick,
+                enabled = !isLoggingOut,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (isLoggingOut) {
+                        stringResource(R.string.processing)
+                    } else {
+                        stringResource(R.string.logout)
                     }
                 )
             }
