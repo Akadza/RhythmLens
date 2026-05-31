@@ -16,4 +16,6 @@ interface AuthRepository {
         credential: String,
         role: UserRole
     ): Result<User>
+
+    suspend fun signOut()
 }
