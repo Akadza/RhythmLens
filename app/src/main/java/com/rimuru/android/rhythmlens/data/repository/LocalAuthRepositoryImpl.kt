@@ -59,6 +59,8 @@ class LocalAuthRepositoryImpl @Inject constructor(
         return Result.success(user)
     }
 
+    override suspend fun signOut() = Unit
+
     private fun UserEntity.toDomain(): User {
         return User(
             id = id,
