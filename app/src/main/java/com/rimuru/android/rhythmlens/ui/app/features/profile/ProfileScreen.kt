@@ -3,7 +3,6 @@ package com.rimuru.android.rhythmlens.ui.app.features.profile
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,16 +51,6 @@ fun ProfileScreen(
         ) {
             item {
                 ProfileInfoCard(state = state)
-            }
-
-            item {
-                RoleSwitcherCard(
-                    currentRole = state.role,
-                    isRoleChanging = state.isRoleChanging,
-                    onRoleSelected = { role ->
-                        onEvent(ProfileEvent.RoleSelected(role))
-                    }
-                )
             }
 
             item {
@@ -115,58 +103,6 @@ private fun ProfileInfoCard(
                 title = stringResource(R.string.profile_selected_patient),
                 value = state.selectedPatientId ?: stringResource(R.string.not_specified)
             )
-        }
-    }
-}
-
-@Composable
-private fun RoleSwitcherCard(
-    currentRole: UserRole?,
-    isRoleChanging: Boolean,
-    onRoleSelected: (UserRole) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(RhythmSpacing.ExtraLarge),
-            verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Medium)
-        ) {
-            Text(
-                text = stringResource(R.string.profile_dev_role_switcher),
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Text(
-                text = stringResource(R.string.profile_dev_role_switcher_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(RhythmSpacing.Small)
-            ) {
-                FilterChip(
-                    selected = currentRole == UserRole.PATIENT,
-                    enabled = !isRoleChanging,
-                    onClick = { onRoleSelected(UserRole.PATIENT) },
-                    label = {
-                        Text(text = stringResource(R.string.role_patient))
-                    }
-                )
-
-                FilterChip(
-                    selected = currentRole == UserRole.DOCTOR,
-                    enabled = !isRoleChanging,
-                    onClick = { onRoleSelected(UserRole.DOCTOR) },
-                    label = {
-                        Text(text = stringResource(R.string.role_doctor))
-                    }
-                )
-            }
         }
     }
 }
