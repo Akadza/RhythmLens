@@ -2,11 +2,9 @@ package com.rimuru.android.rhythmlens.ui.app.features.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.domain.usecase.LogoutUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
-import com.rimuru.android.rhythmlens.domain.usecase.SwitchUserRoleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +17,6 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
     private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
-    private val switchUserRoleUseCase: SwitchUserRoleUseCase,
     private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
 
@@ -32,10 +29,6 @@ class ProfileViewModel @Inject constructor(
 
     fun onEvent(event: ProfileEvent) {
         when (event) {
-            is ProfileEvent.RoleSelected -> {
-                switchRole(event.role)
-            }
-
             ProfileEvent.LogoutClicked -> {
                 logout()
             }
@@ -53,27 +46,10 @@ class ProfileViewModel @Inject constructor(
                     email = user?.email.orEmpty(),
                     role = user?.role,
                     selectedPatientId = selectedPatientId,
-                    isRoleChanging = _uiState.value.isRoleChanging,
-                    isLoggingOut = _uiState.value.isLoggingOut
+                    isLoggingOut = false
                 )
             }.collect { state ->
                 _uiState.value = state
-            }
-        }
-    }
-
-    private fun switchRole(role: UserRole) {
-        viewModelScope.launch {
-            _uiState.update { state ->
-                state.copy(isRoleChanging = true)
-            }
-
-            runCatching {
-                switchUserRoleUseCase(role)
-            }
-
-            _uiState.update { state ->
-                state.copy(isRoleChanging = false)
             }
         }
     }
@@ -84,7 +60,13 @@ class ProfileViewModel @Inject constructor(
                 state.copy(isLoggingOut = true)
             }
 
-            logoutUseCase()
+            runCatching {
+                logoutUseCase()
+            }.onFailure {
+                _uiState.update { state ->
+                    state.copy(isLoggingOut = false)
+                }
+            }
         }
     }
 }
