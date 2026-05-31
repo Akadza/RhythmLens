@@ -23,15 +23,15 @@ class DataStoreSessionRepositoryImpl @Inject constructor(
 
     override fun observeCurrentUser(): Flow<User?> {
         return context.sessionDataStore.data.map { preferences ->
-            val id = preferences[USER_ID] ?: DEFAULT_USER_ID
-            val email = preferences[USER_EMAIL] ?: DEFAULT_USER_EMAIL
-            val fullName = preferences[USER_FULL_NAME] ?: DEFAULT_USER_FULL_NAME
+            val id = preferences[USER_ID] ?: return@map null
+            val email = preferences[USER_EMAIL].orEmpty()
+            val fullName = preferences[USER_FULL_NAME].orEmpty()
             val role = preferences[USER_ROLE]
                 ?.let { roleName -> runCatching { UserRole.valueOf(roleName) }.getOrNull() }
-                ?: DEFAULT_USER_ROLE
+                ?: UserRole.PATIENT
             val createdAt = preferences[USER_CREATED_AT]
                 ?.let { value -> runCatching { Instant.parse(value) }.getOrNull() }
-                ?: DEFAULT_USER_CREATED_AT
+                ?: Instant.EPOCH
 
             User(
                 id = id,
@@ -49,7 +49,7 @@ class DataStoreSessionRepositoryImpl @Inject constructor(
 
     override fun observeSelectedPatientId(): Flow<String?> {
         return context.sessionDataStore.data.map { preferences ->
-            preferences[SELECTED_PATIENT_ID] ?: DEFAULT_PATIENT_ID
+            preferences[SELECTED_PATIENT_ID]
         }
     }
 
@@ -95,12 +95,5 @@ class DataStoreSessionRepositoryImpl @Inject constructor(
         val USER_ROLE = stringPreferencesKey("user_role")
         val USER_CREATED_AT = stringPreferencesKey("user_created_at")
         val SELECTED_PATIENT_ID = stringPreferencesKey("selected_patient_id")
-
-        const val DEFAULT_USER_ID = "temp-user-id"
-        const val DEFAULT_USER_EMAIL = "patient@example.com"
-        const val DEFAULT_USER_FULL_NAME = "Александр"
-        val DEFAULT_USER_ROLE = UserRole.PATIENT
-        val DEFAULT_USER_CREATED_AT: Instant = Instant.EPOCH
-        const val DEFAULT_PATIENT_ID = "temp-patient-id"
     }
 }
