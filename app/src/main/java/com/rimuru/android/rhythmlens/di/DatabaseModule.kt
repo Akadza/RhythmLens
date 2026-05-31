@@ -7,6 +7,7 @@ import com.rimuru.android.rhythmlens.data.local.dao.DoctorConclusionDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
 import com.rimuru.android.rhythmlens.data.local.dao.PatientDao
+import com.rimuru.android.rhythmlens.data.local.dao.UserDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,5 +49,10 @@ object DatabaseModule {
     @Provides
     fun provideDoctorConclusionDao(database: RhythmLensDatabase): DoctorConclusionDao {
         return database.doctorConclusionDao()
+    }
+
+    @Provides
+    fun provideUserDao(database: RhythmLensDatabase): UserDao {
+        return database.userDao()
     }
 }
