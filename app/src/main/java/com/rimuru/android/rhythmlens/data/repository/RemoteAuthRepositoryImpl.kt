@@ -71,6 +71,10 @@ class RemoteAuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun signOut() {
+        externalAuthProvider.signOut()
+    }
+
     private fun AuthUserDto.toDomain(): User {
         return User(
             id = id,
