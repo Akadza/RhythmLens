@@ -18,7 +18,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "https://your-api-domain.com/"
+    private const val BASE_URL = "https://rhythmlens.tplinkdns.com:8443/"
 
     @Provides
     @Singleton

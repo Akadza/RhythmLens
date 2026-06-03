@@ -5,6 +5,7 @@ import com.rimuru.android.rhythmlens.data.repository.DoctorConclusionRepositoryI
 import com.rimuru.android.rhythmlens.data.repository.EcgRepositoryImpl
 import com.rimuru.android.rhythmlens.data.repository.LocalAuthRepositoryImpl
 import com.rimuru.android.rhythmlens.data.repository.PatientRepositoryImpl
+import com.rimuru.android.rhythmlens.data.repository.RemoteAuthRepositoryImpl
 import com.rimuru.android.rhythmlens.domain.repository.AuthRepository
 import com.rimuru.android.rhythmlens.domain.repository.DoctorConclusionRepository
 import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
@@ -47,6 +48,6 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAuthRepository(
-        impl: LocalAuthRepositoryImpl
+        impl: RemoteAuthRepositoryImpl
     ): AuthRepository
 }
