@@ -13,15 +13,6 @@ fun NavGraphBuilder.bottomNavGraph(
 ) {
     composable<BottomNavDestination.Home> {
         HomeRoute(
-            onOpenCamera = {
-                // TODO: открыть CameraX flow
-            },
-            onOpenGalleryPicker = {
-                // TODO: открыть системный Photo Picker
-            },
-            onOpenFilePicker = {
-                // TODO: открыть системный File Picker
-            },
             onNavigateToEcgDetail = { ecgId ->
                 rootNavController.navigate(
                     EcgDetailDestination(ecgId)
