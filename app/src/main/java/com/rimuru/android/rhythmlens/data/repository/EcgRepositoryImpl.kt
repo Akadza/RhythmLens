@@ -1,23 +1,37 @@
 package com.rimuru.android.rhythmlens.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
 import com.rimuru.android.rhythmlens.data.local.entity.EcgRecordEntity
+import com.rimuru.android.rhythmlens.data.remote.api.EcgApi
+import com.rimuru.android.rhythmlens.data.remote.dto.EcgRecordDto
 import com.rimuru.android.rhythmlens.data.repository.mapper.EcgSignalBinaryMapper
 import com.rimuru.android.rhythmlens.domain.model.DigitizedEcg
 import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+import java.time.Instant
 import javax.inject.Inject
 
 class EcgRepositoryImpl @Inject constructor(
     private val ecgDao: EcgDao,
     private val ecgSignalDao: EcgSignalDao,
-    private val ecgSignalBinaryMapper: EcgSignalBinaryMapper
+    private val ecgSignalBinaryMapper: EcgSignalBinaryMapper,
+    private val ecgApi: EcgApi,
+    @ApplicationContext private val context: Context
 ) : EcgRepository {
 
     private fun EcgRecordEntity.toDomain(signal: DigitizedEcg? = null): EcgRecord {
@@ -62,18 +76,59 @@ class EcgRepositoryImpl @Inject constructor(
     }
 
     override suspend fun digitizeEcg(imageUri: String): EcgRecord {
-        val fakeRecord = EcgRecord(
-            id = java.util.UUID.randomUUID().toString(),
-            patientId = "temp-patient-id",
-            recordedAt = java.time.Instant.now(),
-            originalImageUrl = imageUri,
-            digitizedSignal = null,
-            heartRate = 72,
-            status = EcgStatus.DIGITIZING,
-            processingMessage = "Оцифровка ЭКГ"
-        )
-        saveEcg(fakeRecord)
-        return fakeRecord
+        val uploadedRecord = uploadImageToBackend(imageUri)
+        val domainRecord = uploadedRecord.toDomain()
+        saveEcg(domainRecord)
+        return domainRecord
+    }
+
+    private suspend fun uploadImageToBackend(imageUri: String): EcgRecordDto {
+        return withContext(Dispatchers.IO) {
+            val uri = Uri.parse(imageUri)
+            val tempFile = copyUriToTempFile(uri)
+            try {
+                val requestBody = tempFile
+                    .asRequestBody(resolveMimeType(uri).toMediaTypeOrNull())
+                val part = MultipartBody.Part.createFormData(
+                    name = "file",
+                    filename = tempFile.name,
+                    body = requestBody
+                )
+
+                ecgApi.uploadEcg(part)
+            } finally {
+                tempFile.delete()
+            }
+        }
+    }
+
+    private fun copyUriToTempFile(uri: Uri): File {
+        val extension = when (context.contentResolver.getType(uri)) {
+            "image/jpeg" -> ".jpg"
+            "image/png" -> ".png"
+            else -> when (uri.path?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()) {
+                "jpg", "jpeg" -> ".jpg"
+                "png" -> ".png"
+                else -> ".png"
+            }
+        }
+
+        val tempFile = File.createTempFile("ecg_upload_", extension, context.cacheDir)
+        context.contentResolver.openInputStream(uri).use { input ->
+            requireNotNull(input) { "Cannot open ECG image" }
+            tempFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        return tempFile
+    }
+
+    private fun resolveMimeType(uri: Uri): String {
+        return context.contentResolver.getType(uri) ?: when (uri.path?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            else -> "image/png"
+        }
     }
 
     override suspend fun saveEcg(record: EcgRecord) {
@@ -121,6 +176,21 @@ class EcgRepositoryImpl @Inject constructor(
             leadEntities = leads,
             samplingRate = samplingRate,
             durationSeconds = durationSeconds
+        )
+    }
+
+    private fun EcgRecordDto.toDomain(): EcgRecord {
+        return EcgRecord(
+            id = id,
+            patientId = ownerUserId,
+            recordedAt = runCatching { Instant.parse(createdAt) }.getOrDefault(Instant.now()),
+            originalImageUrl = null,
+            digitizedSignal = null,
+            heartRate = null,
+            status = status.toEcgStatus(),
+            processingMessage = null,
+            errorMessage = errorMessage,
+            doctorId = null
         )
     }
 
