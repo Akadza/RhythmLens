@@ -1,16 +1,19 @@
 package com.rimuru.android.rhythmlens.di
 
+import com.rimuru.android.rhythmlens.data.auth.ExternalAuthProvider
 import com.rimuru.android.rhythmlens.data.remote.api.AuthApi
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.rimuru.android.rhythmlens.data.remote.api.EcgApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -22,17 +25,36 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(
+        externalAuthProvider: ExternalAuthProvider
+    ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
+            redactHeader("Authorization")
         }
-        /**
-         * TODO: delete interceptor on realise
-         */
+
         return OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val originalRequest = chain.request()
+                val token = runBlocking {
+                    externalAuthProvider.getIdToken(forceRefresh = false).getOrNull()
+                }
+
+                val request = if (token.isNullOrBlank()) {
+                    originalRequest
+                } else {
+                    originalRequest.newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                }
+
+                chain.proceed(request)
+            }
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.MINUTES)
+            .readTimeout(30, TimeUnit.MINUTES)
+            .callTimeout(30, TimeUnit.MINUTES)
             .build()
     }
 
@@ -57,5 +79,11 @@ object NetworkModule {
     @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi {
         return retrofit.create(AuthApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEcgApi(retrofit: Retrofit): EcgApi {
+        return retrofit.create(EcgApi::class.java)
     }
 }
