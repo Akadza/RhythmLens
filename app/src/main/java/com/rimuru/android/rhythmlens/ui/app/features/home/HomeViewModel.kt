@@ -8,6 +8,7 @@ import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
 import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
+import com.rimuru.android.rhythmlens.domain.usecase.DigitizeEcgUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObservePatientByIdUseCase
@@ -38,6 +39,7 @@ import kotlin.math.sin
 class HomeViewModel @Inject constructor(
     private val getEcgListUseCase: GetEcgListUseCase,
     private val saveEcgUseCase: SaveEcgUseCase,
+    private val digitizeEcgUseCase: DigitizeEcgUseCase,
     private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
     private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
     private val observePatientByIdUseCase: ObservePatientByIdUseCase
@@ -85,6 +87,11 @@ class HomeViewModel @Inject constructor(
             HomeEvent.CreateTestEcgClicked -> {
                 closeSheet()
                 createTestEcg()
+            }
+
+            is HomeEvent.ImageSelected -> {
+                closeSheet()
+                processSelectedImage(event.imageUri)
             }
 
             is HomeEvent.LastRecordClicked -> {
@@ -144,6 +151,42 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+    }
+
+    private fun processSelectedImage(imageUri: String) {
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(isCreatingTestEcg = true)
+            }
+
+            runCatching {
+                digitizeEcgUseCase(imageUri)
+            }.onSuccess { record ->
+                _uiState.update { state ->
+                    state.copy(isCreatingTestEcg = false)
+                }
+                _effect.trySend(HomeEffect.NavigateToEcgDetail(record.id))
+            }.onFailure { throwable ->
+                _uiState.update { state ->
+                    state.copy(isCreatingTestEcg = false)
+                }
+
+                val patientId = _uiState.value.selectedPatientId ?: "current-user"
+                saveEcgUseCase(
+                    EcgRecord(
+                        id = UUID.randomUUID().toString(),
+                        patientId = patientId,
+                        recordedAt = Instant.now(),
+                        originalImageUrl = imageUri,
+                        digitizedSignal = null,
+                        heartRate = null,
+                        status = EcgStatus.ERROR,
+                        processingMessage = null,
+                        errorMessage = throwable.message ?: "Не удалось обработать ЭКГ"
+                    )
+                )
+            }
         }
     }
 
