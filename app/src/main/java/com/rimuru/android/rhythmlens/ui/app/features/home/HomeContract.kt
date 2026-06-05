@@ -27,6 +27,7 @@ sealed interface HomeEvent {
     data object GalleryClicked : HomeEvent
     data object ImportClicked : HomeEvent
     data object CreateTestEcgClicked : HomeEvent
+    data class ImageSelected(val imageUri: String) : HomeEvent
     data class LastRecordClicked(val ecgId: String) : HomeEvent
 }
 
