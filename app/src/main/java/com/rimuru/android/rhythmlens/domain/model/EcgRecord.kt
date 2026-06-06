@@ -1,5 +1,6 @@
 package com.rimuru.android.rhythmlens.domain.model
 
+import kotlinx.serialization.Serializable
 import java.time.Instant
 
 data class EcgRecord(
@@ -12,7 +13,15 @@ data class EcgRecord(
     val status: EcgStatus = EcgStatus.DRAFT,
     val processingMessage: String? = null,
     val errorMessage: String? = null,
-    val doctorId: String? = null
+    val doctorId: String? = null,
+    val topPredictions: List<EcgPrediction> = emptyList()
+)
+
+@Serializable
+data class EcgPrediction(
+    val label: String,
+    val probability: Double,
+    val detected: Boolean
 )
 
 data class DigitizedEcg(
