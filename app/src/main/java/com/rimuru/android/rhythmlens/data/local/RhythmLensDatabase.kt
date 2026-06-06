@@ -23,7 +23,7 @@ import com.rimuru.android.rhythmlens.data.local.entity.UserEntity
         DoctorConclusionEntity::class,
         UserEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
