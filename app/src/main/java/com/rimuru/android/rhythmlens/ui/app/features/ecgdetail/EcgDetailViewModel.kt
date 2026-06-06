@@ -1,5 +1,6 @@
 package com.rimuru.android.rhythmlens.ui.app.features.ecgdetail
 
+import kotlin.math.roundToInt
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -303,6 +304,7 @@ class EcgDetailViewModel @Inject constructor(
         return fallback.copy(
             ecgId = id,
             date = DATE_FORMATTER.format(recordedAt.atZone(ZoneId.systemDefault())),
+            probabilities = topPredictions.toDiagnosisProbabilities(fallback.probabilities),
             signalInfo = fallback.signalInfo.copy(
                 duration = duration,
                 samplingRate = samplingRate,
@@ -405,6 +407,29 @@ class EcgDetailViewModel @Inject constructor(
 
             else -> LeadOriginUi.Digitized
         }
+    }
+
+    private fun List<com.rimuru.android.rhythmlens.domain.model.EcgPrediction>.toDiagnosisProbabilities(
+        fallback: List<DiagnosisProbabilityUi>
+    ): List<DiagnosisProbabilityUi> {
+        if (isEmpty()) {
+            return fallback
+        }
+
+        return sortedByDescending { prediction -> prediction.probability }
+            .take(10)
+            .map { prediction ->
+                DiagnosisProbabilityUi(
+                    title = prediction.label,
+                    code = null,
+                    probability = prediction.probability.toPercentInt()
+                )
+            }
+    }
+
+    private fun Double.toPercentInt(): Int {
+        val percent = if (this <= 1.0) this * 100.0 else this
+        return percent.roundToInt().coerceIn(0, 100)
     }
 
     private companion object {

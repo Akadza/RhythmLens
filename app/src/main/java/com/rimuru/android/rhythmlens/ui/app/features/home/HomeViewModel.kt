@@ -1,5 +1,6 @@
 package com.rimuru.android.rhythmlens.ui.app.features.home
 
+import kotlin.math.roundToInt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rimuru.android.rhythmlens.domain.model.DigitizedEcg
@@ -255,18 +256,29 @@ class HomeViewModel @Inject constructor(
             ?: 0
         val statusText = processingMessage ?: status.toDisplayText()
 
+        val prediction = primaryPrediction
+
         return LastEcgUi(
             id = id,
             date = DATE_FORMATTER.format(recordedAt.atZone(ZoneId.systemDefault())),
-            mainResult = if (status == EcgStatus.ERROR) {
-                errorMessage ?: statusText
-            } else {
-                statusText
+            mainResult = when {
+                status == EcgStatus.ERROR -> errorMessage ?: statusText
+                status == EcgStatus.PROCESSED && prediction != null -> prediction.label
+                else -> statusText
             },
-            probability = if (status == EcgStatus.PROCESSED) 0 else null,
+            probability = if (status == EcgStatus.PROCESSED) {
+                prediction?.probability?.toPercentInt()
+            } else {
+                null
+            },
             digitizedLeads = digitizedLeads,
             reconstructedLeads = reconstructedLeads
         )
+    }
+
+    private fun Double.toPercentInt(): Int {
+        val percent = if (this <= 1.0) this * 100.0 else this
+        return percent.roundToInt().coerceIn(0, 100)
     }
 
     private fun buildInitialTestEcgRecord(patientId: String): EcgRecord {
