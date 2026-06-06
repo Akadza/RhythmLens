@@ -20,5 +20,6 @@ data class EcgRecordEntity(
     val durationSeconds: Double?,
     val digitizedLeadCount: Int,
     val reconstructedLeadCount: Int,
+    val topPredictionsJson: String? = null,
     val createdAt: Instant = Instant.now()
 )
