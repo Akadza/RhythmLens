@@ -1,5 +1,10 @@
 package com.rimuru.android.rhythmlens.data.repository
 
+import com.rimuru.android.rhythmlens.data.remote.dto.EcgPredictionDto
+import com.rimuru.android.rhythmlens.domain.model.EcgPrediction
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import android.content.Context
 import android.net.Uri
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
@@ -45,7 +50,8 @@ class EcgRepositoryImpl @Inject constructor(
             status = status.toEcgStatus(),
             processingMessage = processingMessage,
             errorMessage = errorMessage,
-            doctorId = doctorId
+            doctorId = doctorId,
+            topPredictions = decodeTopPredictions(topPredictionsJson)
         )
     }
 
@@ -71,7 +77,8 @@ class EcgRepositoryImpl @Inject constructor(
             samplingRate = signal?.samplingRate,
             durationSeconds = signal?.durationSeconds,
             digitizedLeadCount = digitizedLeadCount,
-            reconstructedLeadCount = reconstructedLeadCount
+            reconstructedLeadCount = reconstructedLeadCount,
+            topPredictionsJson = encodeTopPredictions(topPredictions)
         )
     }
 
@@ -177,6 +184,7 @@ class EcgRepositoryImpl @Inject constructor(
             samplingRate = samplingRate,
             durationSeconds = durationSeconds
         )
+
     }
 
     private fun EcgRecordDto.toDomain(): EcgRecord {
@@ -190,14 +198,47 @@ class EcgRepositoryImpl @Inject constructor(
             status = status.toEcgStatus(),
             processingMessage = null,
             errorMessage = errorMessage,
-            doctorId = null
+            doctorId = null,
+            topPredictions = topPredictions.map { it.toDomain() }
         )
+    }
+
+    private fun EcgPredictionDto.toDomain(): EcgPrediction {
+        return EcgPrediction(
+            label = label,
+            probability = probability,
+            detected = isDetected
+        )
+    }
+
+    private fun encodeTopPredictions(predictions: List<EcgPrediction>): String? {
+        if (predictions.isEmpty()) {
+            return null
+        }
+
+        return predictionJson.encodeToString(predictions)
+    }
+
+    private fun decodeTopPredictions(raw: String?): List<EcgPrediction> {
+        if (raw.isNullOrBlank()) {
+            return emptyList()
+        }
+
+        return runCatching {
+            predictionJson.decodeFromString<List<EcgPrediction>>(raw)
+        }.getOrDefault(emptyList())
     }
 
     private fun String.toEcgStatus(): EcgStatus {
         return when (this) {
             "PENDING" -> EcgStatus.DIGITIZING
             else -> runCatching { EcgStatus.valueOf(this) }.getOrDefault(EcgStatus.ERROR)
+        }
+    }
+
+    private companion object {
+        val predictionJson: Json = Json {
+            ignoreUnknownKeys = true
         }
     }
 }
