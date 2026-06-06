@@ -1,7 +1,11 @@
 package com.rimuru.android.rhythmlens.domain.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 data class EcgRecord(
     val id: String,
@@ -14,7 +18,7 @@ data class EcgRecord(
     val processingMessage: String? = null,
     val errorMessage: String? = null,
     val doctorId: String? = null,
-    val topPredictions: List<EcgPrediction> = emptyList()
+    val topPredictions: List<EcgPrediction> = EcgPredictionPayloadRegistry.getPredictions(id)
 )
 
 @Serializable
@@ -23,6 +27,34 @@ data class EcgPrediction(
     val probability: Double,
     val detected: Boolean
 )
+
+object EcgPredictionPayloadRegistry {
+    private val json = Json { ignoreUnknownKeys = true }
+    private val predictionsByEcgId = ConcurrentHashMap<String, String>()
+
+    fun putJson(ecgId: String, predictionsJson: String?) {
+        if (!predictionsJson.isNullOrBlank()) {
+            predictionsByEcgId[ecgId] = predictionsJson
+        }
+    }
+
+    fun putPredictions(ecgId: String, predictions: List<EcgPrediction>) {
+        if (predictions.isNotEmpty()) {
+            predictionsByEcgId[ecgId] = json.encodeToString(predictions)
+        }
+    }
+
+    fun getJson(ecgId: String): String? {
+        return predictionsByEcgId[ecgId]
+    }
+
+    fun getPredictions(ecgId: String): List<EcgPrediction> {
+        val raw = predictionsByEcgId[ecgId] ?: return emptyList()
+        return runCatching {
+            json.decodeFromString<List<EcgPrediction>>(raw)
+        }.getOrDefault(emptyList())
+    }
+}
 
 data class DigitizedEcg(
     val leads: Map<EcgLead, List<EcgPoint>>,
