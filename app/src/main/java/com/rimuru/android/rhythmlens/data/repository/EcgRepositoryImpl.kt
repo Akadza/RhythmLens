@@ -174,6 +174,23 @@ class EcgRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun syncEcgFromBackend(): List<EcgRecord> {
+        return withContext(Dispatchers.IO) {
+            ecgApi.getEcgRecords().map { dto ->
+                val status = dto.status.toEcgStatus()
+                val remoteSignal = loadRemoteSignalOrNull(dto.id, status)
+                val cachedSignal = if (remoteSignal == null) {
+                    loadCachedSignalOrNull(dto.id)
+                } else {
+                    null
+                }
+                val record = dto.toDomain(signal = remoteSignal ?: cachedSignal)
+                saveEcg(record)
+                record
+            }
+        }
+    }
+
     override fun getEcgById(id: String): Flow<EcgRecord?> {
         return ecgDao.getById(id).mapLatest { entity ->
             entity?.let {
@@ -196,6 +213,11 @@ class EcgRepositoryImpl @Inject constructor(
     override suspend fun generateSyntheticImage(ecgId: String): String {
         // TODO: Запрос на сервер
         return "https://fake-server.com/synthetic/${ecgId}.png"
+    }
+
+    private suspend fun loadCachedSignalOrNull(ecgId: String): DigitizedEcg? {
+        val entity = ecgDao.getByIdOnce(ecgId) ?: return null
+        return buildSignalForRecord(entity)
     }
 
     private suspend fun buildSignalForRecord(entity: EcgRecordEntity): DigitizedEcg? {
