@@ -33,10 +33,6 @@ fun EcgDetailRoute(
                     onNavigateToSyntheticImage(effect.ecgId)
                 }
 
-                is EcgDetailEffect.NavigateToExport -> {
-                    // no-op: export is handled as ShareReport for the MVP
-                }
-
                 is EcgDetailEffect.ShareReport -> {
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
