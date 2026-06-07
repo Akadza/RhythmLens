@@ -1,20 +1,22 @@
 package com.rimuru.android.rhythmlens.data.repository
 
-import com.rimuru.android.rhythmlens.data.remote.dto.EcgPredictionDto
-import com.rimuru.android.rhythmlens.domain.model.EcgPrediction
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import android.content.Context
 import android.net.Uri
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
 import com.rimuru.android.rhythmlens.data.local.entity.EcgRecordEntity
 import com.rimuru.android.rhythmlens.data.remote.api.EcgApi
+import com.rimuru.android.rhythmlens.data.remote.dto.EcgPredictionDto
 import com.rimuru.android.rhythmlens.data.remote.dto.EcgRecordDto
+import com.rimuru.android.rhythmlens.data.remote.dto.EcgSignalDto
+import com.rimuru.android.rhythmlens.data.remote.dto.EcgSignalSegmentDto
 import com.rimuru.android.rhythmlens.data.repository.mapper.EcgSignalBinaryMapper
 import com.rimuru.android.rhythmlens.domain.model.DigitizedEcg
+import com.rimuru.android.rhythmlens.domain.model.EcgLead
 import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadSegment
+import com.rimuru.android.rhythmlens.domain.model.EcgPoint
+import com.rimuru.android.rhythmlens.domain.model.EcgPrediction
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
@@ -24,6 +26,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -84,7 +89,8 @@ class EcgRepositoryImpl @Inject constructor(
 
     override suspend fun digitizeEcg(imageUri: String): EcgRecord {
         val uploadedRecord = uploadImageToBackend(imageUri)
-        val domainRecord = uploadedRecord.toDomain()
+        val signal = loadRemoteSignalOrNull(uploadedRecord.id, uploadedRecord.status.toEcgStatus())
+        val domainRecord = uploadedRecord.toDomain(signal = signal)
         saveEcg(domainRecord)
         return domainRecord
     }
@@ -107,6 +113,16 @@ class EcgRepositoryImpl @Inject constructor(
                 tempFile.delete()
             }
         }
+    }
+
+    private suspend fun loadRemoteSignalOrNull(ecgId: String, status: EcgStatus): DigitizedEcg? {
+        if (status != EcgStatus.PROCESSED) {
+            return null
+        }
+
+        return runCatching {
+            ecgApi.getEcgSignal(ecgId).toDomain()
+        }.getOrNull()
     }
 
     private fun copyUriToTempFile(uri: Uri): File {
@@ -142,8 +158,16 @@ class EcgRepositoryImpl @Inject constructor(
         ecgDao.insert(record.toEntity())
 
         val signal = record.digitizedSignal ?: return
+        ecgSignalDao.deleteLeadsForEcg(record.id)
+        ecgSignalDao.deleteSegmentsForEcg(record.id)
         ecgSignalDao.insertAll(
             ecgSignalBinaryMapper.toEntities(
+                ecgId = record.id,
+                signal = signal
+            )
+        )
+        ecgSignalDao.insertSegments(
+            ecgSignalBinaryMapper.toSegmentEntities(
                 ecgId = record.id,
                 signal = signal
             )
@@ -178,28 +202,72 @@ class EcgRepositoryImpl @Inject constructor(
         val samplingRate = entity.samplingRate ?: return null
         val durationSeconds = entity.durationSeconds ?: return null
         val leads = ecgSignalDao.getLeadsForEcg(entity.id)
+        val segments = ecgSignalDao.getSegmentsForEcg(entity.id)
 
         return ecgSignalBinaryMapper.toDomain(
             leadEntities = leads,
+            segmentEntities = segments,
             samplingRate = samplingRate,
             durationSeconds = durationSeconds
         )
-
     }
 
-    private fun EcgRecordDto.toDomain(): EcgRecord {
+    private fun EcgRecordDto.toDomain(signal: DigitizedEcg? = null): EcgRecord {
         return EcgRecord(
             id = id,
             patientId = ownerUserId,
             recordedAt = runCatching { Instant.parse(createdAt) }.getOrDefault(Instant.now()),
             originalImageUrl = null,
-            digitizedSignal = null,
+            digitizedSignal = signal,
             heartRate = null,
             status = status.toEcgStatus(),
             processingMessage = null,
             errorMessage = errorMessage,
             doctorId = null,
             topPredictions = topPredictions.map { it.toDomain() }
+        )
+    }
+
+    private fun EcgSignalDto.toDomain(): DigitizedEcg {
+        val leadSegments = leads.mapNotNull { leadDto ->
+            val lead = runCatching { EcgLead.valueOf(leadDto.lead) }.getOrNull() ?: return@mapNotNull null
+            val segments = leadDto.segments.map { segmentDto ->
+                segmentDto.toDomain(samplingRate)
+            }
+            lead to segments
+        }.toMap()
+
+        val flatLeads = leadSegments.mapValues { (_, segments) ->
+            segments
+                .sortedBy { segment -> segment.startSampleIndex }
+                .flatMap { segment -> segment.points }
+        }
+
+        val leadOrigins = leads.mapNotNull { leadDto ->
+            val lead = runCatching { EcgLead.valueOf(leadDto.lead) }.getOrNull() ?: return@mapNotNull null
+            lead to leadDto.origin.toEcgLeadOrigin()
+        }.toMap()
+
+        return DigitizedEcg(
+            leads = flatLeads,
+            leadOrigins = leadOrigins,
+            samplingRate = samplingRate,
+            durationSeconds = durationSeconds,
+            leadSegments = leadSegments
+        )
+    }
+
+    private fun EcgSignalSegmentDto.toDomain(samplingRate: Int): EcgLeadSegment {
+        return EcgLeadSegment(
+            origin = origin.toEcgLeadOrigin(),
+            startSampleIndex = startSampleIndex,
+            points = voltage.mapIndexed { index, value ->
+                val sampleIndex = startSampleIndex + index
+                EcgPoint(
+                    timeMs = sampleIndex * 1000L / samplingRate,
+                    voltageMv = value
+                )
+            }
         )
     }
 
@@ -234,6 +302,10 @@ class EcgRepositoryImpl @Inject constructor(
             "PENDING" -> EcgStatus.DIGITIZING
             else -> runCatching { EcgStatus.valueOf(this) }.getOrDefault(EcgStatus.ERROR)
         }
+    }
+
+    private fun String.toEcgLeadOrigin(): EcgLeadOrigin {
+        return runCatching { EcgLeadOrigin.valueOf(this) }.getOrDefault(EcgLeadOrigin.RECONSTRUCTED)
     }
 
     private companion object {
