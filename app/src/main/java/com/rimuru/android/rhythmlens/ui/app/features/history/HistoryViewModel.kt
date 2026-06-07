@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
+import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveDoctorConclusionUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObservePatientByIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
@@ -31,6 +33,7 @@ import javax.inject.Inject
 class HistoryViewModel @Inject constructor(
     private val getEcgListUseCase: GetEcgListUseCase,
     private val refreshEcgListUseCase: RefreshEcgListUseCase,
+    private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
     private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
     private val observePatientByIdUseCase: ObservePatientByIdUseCase,
     private val observeDoctorConclusionUseCase: ObserveDoctorConclusionUseCase
@@ -68,14 +71,23 @@ class HistoryViewModel @Inject constructor(
                 refreshEcgListUseCase()
             }.exceptionOrNull()
 
-            observeSelectedPatientIdUseCase()
-                .flatMapLatest { patientId ->
+            combine(
+                observeCurrentUserUseCase(),
+                observeSelectedPatientIdUseCase()
+            ) { user, selectedPatientId ->
+                val effectivePatientId = when {
+                    user?.role == UserRole.PATIENT -> user.id
+                    else -> selectedPatientId
+                }
+                user to effectivePatientId
+            }
+                .flatMapLatest { (user, patientId) ->
                     patientId?.let { id ->
                         combine(
                             getEcgListUseCase(id),
                             observePatientByIdUseCase(id)
                         ) { records, patient ->
-                            records to patient?.fullName
+                            records to (patient?.fullName ?: user?.fullName)
                         }.flatMapLatest { (records, patientName) ->
                             observeConclusionFlags(records).map { conclusionFlags ->
                                 HistoryData(
