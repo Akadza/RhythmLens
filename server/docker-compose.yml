@@ -1,0 +1,105 @@
+services:
+  caddy:
+    image: caddy:2.8
+    container_name: rhythmlens-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rhythmlens-backend
+    restart: unless-stopped
+    environment:
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-service-account.json
+      DATABASE_URL: postgresql+psycopg://rhythmlens:rhythmlens_password@postgres:5432/rhythmlens
+      DIGITIZER_URL: http://digitizer-service:8001
+      COMPLETION_URL: http://completion-service:8002
+      ANALYSIS_URL: http://analysis-service:8003
+      SYNTHETIC_URL: http://synthetic-service:8004
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+      - digitizer-service
+      - completion-service
+      - analysis-service
+      - synthetic-service
+    volumes:
+      - ./data:/data
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+
+  postgres:
+    image: postgres:16
+    container_name: rhythmlens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rhythmlens
+      POSTGRES_USER: rhythmlens
+      POSTGRES_PASSWORD: rhythmlens_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: rhythmlens-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+      
+  digitizer-service:
+    build:
+      context: .
+      dockerfile: modules/digitizer-service/Dockerfile
+    container_name: rhythmlens-digitizer
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./modules/repos/Open-ECG-Digitizer:/opt/Open-ECG-Digitizer:ro
+
+  completion-service:
+    build:
+      context: .
+      dockerfile: modules/completion-service/Dockerfile
+    container_name: rhythmlens-completion
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./models:/models
+      - ./modules/repos/ECG-completion:/opt/ECG-completion:ro
+
+  analysis-service:
+    build:
+      context: .
+      dockerfile: modules/analysis-service/Dockerfile
+    container_name: rhythmlens-analysis
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./models:/models
+      - ./modules/repos/ECGFounder:/opt/ECGFounder:ro
+
+  synthetic-service:
+    build:
+      context: .
+      dockerfile: modules/synthetic-service/Dockerfile
+    container_name: rhythmlens-synthetic
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./modules/repos/ecg-image-kit:/opt/ecg-image-kit:ro
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:
