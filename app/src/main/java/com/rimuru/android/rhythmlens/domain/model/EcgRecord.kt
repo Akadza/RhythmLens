@@ -3,7 +3,7 @@ package com.rimuru.android.rhythmlens.domain.model
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
-data class EcgRecord(
+ data class EcgRecord(
     val id: String,
     val patientId: String,
     val recordedAt: Instant,
@@ -31,7 +31,22 @@ data class DigitizedEcg(
     val leads: Map<EcgLead, List<EcgPoint>>,
     val leadOrigins: Map<EcgLead, EcgLeadOrigin> = leads.keys.associateWith { EcgLeadOrigin.DIGITIZED },
     val samplingRate: Int = 500, // hz
-    val durationSeconds: Double
+    val durationSeconds: Double,
+    val leadSegments: Map<EcgLead, List<EcgLeadSegment>> = leads.mapValues { (lead, points) ->
+        listOf(
+            EcgLeadSegment(
+                origin = leadOrigins[lead] ?: EcgLeadOrigin.DIGITIZED,
+                startSampleIndex = 0,
+                points = points
+            )
+        )
+    }
+)
+
+data class EcgLeadSegment(
+    val origin: EcgLeadOrigin,
+    val startSampleIndex: Int,
+    val points: List<EcgPoint>
 )
 
 data class EcgPoint(
