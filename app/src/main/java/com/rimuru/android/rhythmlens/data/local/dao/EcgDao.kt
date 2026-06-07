@@ -25,6 +25,12 @@ interface EcgDao {
     @Query("DELETE FROM ecg_records WHERE id = :id")
     suspend fun delete(id: String)
 
+    @Query("DELETE FROM ecg_records WHERE patientId = :patientId")
+    suspend fun deleteAllForPatient(patientId: String)
+
+    @Query("DELETE FROM ecg_records WHERE patientId = :patientId AND id NOT IN (:ids)")
+    suspend fun deleteForPatientExcept(patientId: String, ids: List<String>)
+
     @Query("SELECT * FROM ecg_records")
     fun getAll(): Flow<List<EcgRecordEntity>>
 }
