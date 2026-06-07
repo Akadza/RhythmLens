@@ -35,3 +35,43 @@ google-services.json
 
 # configuration
 secrets.properties
+
+# Server local configuration and secrets
+server/.env
+server/.env.*
+!server/.env.example
+server/secrets/
+server/firebase-*.json
+server/*firebase*.json
+server/*service-account*.json
+server/*credentials*.json
+
+# Server runtime data and generated artifacts
+server/data/
+server/storage/
+server/work/
+server/results/
+server/uploads/
+server/logs/
+server/**/*.db
+server/**/*.sqlite
+server/**/*.sqlite3
+
+# Python cache and local environments
+server/**/__pycache__/
+server/**/*.py[cod]
+server/.venv/
+server/venv/
+server/.pytest_cache/
+server/.mypy_cache/
+server/.ruff_cache/
+
+# Model weights and large binary artifacts
+*.pth
+*.pt
+*.onnx
+*.ckpt
+*.safetensors
+*.bin
+*.pkl
+*.joblib
