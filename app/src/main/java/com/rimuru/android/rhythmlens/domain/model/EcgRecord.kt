@@ -3,7 +3,7 @@ package com.rimuru.android.rhythmlens.domain.model
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
- data class EcgRecord(
+data class EcgRecord(
     val id: String,
     val patientId: String,
     val recordedAt: Instant,
