@@ -1,5 +1,6 @@
 package com.rimuru.android.rhythmlens.ui.app.features.ecgdetail
 
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadSegment
 import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
@@ -24,7 +25,6 @@ sealed interface EcgDetailEffect {
     data object NavigateBack : EcgDetailEffect
     data class NavigateToComparison(val ecgId: String) : EcgDetailEffect
     data class NavigateToSyntheticImage(val ecgId: String) : EcgDetailEffect
-    data class NavigateToExport(val ecgId: String) : EcgDetailEffect
     data class ShareReport(val text: String) : EcgDetailEffect
 }
 
@@ -64,7 +64,8 @@ data class SignalInfoUi(
 data class LeadSummaryUi(
     val name: String,
     val origin: LeadOriginUi,
-    val points: List<EcgPoint> = emptyList()
+    val points: List<EcgPoint> = emptyList(),
+    val segments: List<EcgLeadSegment> = emptyList()
 )
 
 enum class LeadOriginUi {
