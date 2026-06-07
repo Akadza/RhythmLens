@@ -9,6 +9,7 @@ import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveDoctorConclusionUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObservePatientByIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.RefreshEcgListUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +29,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val getEcgListUseCase: GetEcgListUseCase,
+    private val refreshEcgListUseCase: RefreshEcgListUseCase,
     private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
     private val observePatientByIdUseCase: ObservePatientByIdUseCase,
     private val observeDoctorConclusionUseCase: ObserveDoctorConclusionUseCase
@@ -60,6 +62,10 @@ class HistoryViewModel @Inject constructor(
             _uiState.update { state ->
                 state.copy(isLoading = true, errorMessage = null)
             }
+
+            val refreshError = runCatching {
+                refreshEcgListUseCase()
+            }.exceptionOrNull()
 
             observeSelectedPatientIdUseCase()
                 .flatMapLatest { patientId ->
@@ -96,6 +102,10 @@ class HistoryViewModel @Inject constructor(
                 }
                 .collect { data ->
                     _uiState.update {
+                        val syncWarning = refreshError?.message
+                            ?.takeIf { data.records.isEmpty() }
+                            ?: refreshError?.let { "Не удалось обновить историю с сервера. Показаны локальные данные." }
+
                         HistoryUiState(
                             isLoading = false,
                             items = data.records.map { record ->
@@ -104,7 +114,7 @@ class HistoryViewModel @Inject constructor(
                                     hasDoctorConclusion = data.conclusionFlags[record.id] == true
                                 )
                             },
-                            errorMessage = null
+                            errorMessage = syncWarning
                         )
                     }
                 }
