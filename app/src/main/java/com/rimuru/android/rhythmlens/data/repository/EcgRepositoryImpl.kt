@@ -23,7 +23,6 @@ import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
@@ -32,6 +31,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import retrofit2.HttpException
 import java.io.File
 import java.time.Instant
 import javax.inject.Inject
@@ -201,13 +201,29 @@ class EcgRepositoryImpl @Inject constructor(
     }
 
     override fun getAllEcgForPatient(patientId: String): Flow<List<EcgRecord>> {
-        return ecgDao.getAllForPatient(patientId).map { list ->
-            list.map { it.toDomain(signal = null) }
+        return ecgDao.getAllForPatient(patientId).mapLatest { list ->
+            withContext(Dispatchers.IO) {
+                list.map { entity ->
+                    entity.toDomain(signal = buildSignalForRecord(entity))
+                }
+            }
         }
     }
 
     override suspend fun deleteEcg(id: String) {
-        ecgDao.delete(id)
+        withContext(Dispatchers.IO) {
+            val remoteDeleteError = runCatching {
+                ecgApi.deleteEcg(id)
+            }.exceptionOrNull()
+
+            if (remoteDeleteError != null && !remoteDeleteError.isHttpNotFound()) {
+                throw remoteDeleteError
+            }
+
+            ecgSignalDao.deleteLeadsForEcg(id)
+            ecgSignalDao.deleteSegmentsForEcg(id)
+            ecgDao.delete(id)
+        }
     }
 
     override suspend fun generateSyntheticImage(ecgId: String): String {
@@ -328,6 +344,10 @@ class EcgRepositoryImpl @Inject constructor(
 
     private fun String.toEcgLeadOrigin(): EcgLeadOrigin {
         return runCatching { EcgLeadOrigin.valueOf(this) }.getOrDefault(EcgLeadOrigin.RECONSTRUCTED)
+    }
+
+    private fun Throwable.isHttpNotFound(): Boolean {
+        return this is HttpException && code() == 404
     }
 
     private companion object {
