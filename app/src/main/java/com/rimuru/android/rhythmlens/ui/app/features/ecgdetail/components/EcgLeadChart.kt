@@ -27,6 +27,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rimuru.android.rhythmlens.R
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadSegment
 import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.LeadOriginUi
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
@@ -40,24 +42,26 @@ fun EcgLeadChart(
     leadName: String,
     points: List<EcgPoint>,
     origin: LeadOriginUi,
+    segments: List<EcgLeadSegment> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val gridMinorColor = colorScheme.outlineVariant.copy(alpha = 0.30f)
     val gridMajorColor = colorScheme.outline.copy(alpha = 0.45f)
-    val signalColor = when (origin) {
-        LeadOriginUi.Digitized -> colorScheme.primary
-        LeadOriginUi.Reconstructed -> colorScheme.tertiary
-        LeadOriginUi.Mixed -> colorScheme.secondary
-    }
     val axisColor = colorScheme.onSurfaceVariant.copy(alpha = 0.80f)
     val labelColor = colorScheme.onSurfaceVariant
+    val chartSegments = remember(points, segments, origin) {
+        buildChartSegments(points, segments, origin)
+    }
+    val chartPoints = remember(chartSegments) {
+        chartSegments.flatMap { it.points }
+    }
 
-    var zoomX by remember(points) { mutableStateOf(1f) }
-    var offsetXFraction by remember(points) { mutableStateOf(0f) }
+    var zoomX by remember(chartPoints) { mutableStateOf(1f) }
+    var offsetXFraction by remember(chartPoints) { mutableStateOf(0f) }
 
     Box(modifier = modifier) {
-        if (points.isEmpty()) {
+        if (chartPoints.isEmpty()) {
             Text(
                 text = stringResource(R.string.lead_chart_no_data_template, leadName),
                 style = MaterialTheme.typography.bodyMedium,
@@ -71,11 +75,10 @@ fun EcgLeadChart(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(points) {
+                    .pointerInput(chartPoints) {
                         detectTransformGestures { _, pan, gestureZoom, _ ->
                             val newZoom = (zoomX * gestureZoom).coerceIn(MIN_ZOOM_X, MAX_ZOOM_X)
                             zoomX = newZoom
-
                             val maxOffset = (1f - 1f / newZoom).coerceAtLeast(0f)
                             val panFraction = -pan.x / size.width.toFloat().coerceAtLeast(1f) / newZoom
                             offsetXFraction = (offsetXFraction + panFraction).coerceIn(0f, maxOffset)
@@ -90,17 +93,21 @@ fun EcgLeadChart(
                 val chartHeight = max(1f, chartBottom - chartTop)
                 val centerY = chartTop + chartHeight / 2f
 
-                val fullTimeMinMs = points.first().timeMs.toFloat()
-                val fullTimeMaxMs = points.last().timeMs.toFloat().coerceAtLeast(fullTimeMinMs + 1f)
+                val fullTimeMinMs = chartPoints.minOf { it.timeMs }.toFloat()
+                val fullTimeMaxMs = chartPoints.maxOf { it.timeMs }.toFloat().coerceAtLeast(fullTimeMinMs + 1f)
                 val fullTimeRangeMs = fullTimeMaxMs - fullTimeMinMs
                 val visibleRangeMs = fullTimeRangeMs / zoomX
                 val safeOffset = offsetXFraction.coerceIn(0f, (1f - 1f / zoomX).coerceAtLeast(0f))
                 val visibleTimeMinMs = fullTimeMinMs + fullTimeRangeMs * safeOffset
                 val visibleTimeMaxMs = visibleTimeMinMs + visibleRangeMs
 
-                val visiblePoints = points.filter { point ->
-                    point.timeMs >= visibleTimeMinMs && point.timeMs <= visibleTimeMaxMs
-                }.ifEmpty { points }
+                val visibleSegments = chartSegments.mapNotNull { segment ->
+                    val visible = segment.points.filter { point ->
+                        point.timeMs >= visibleTimeMinMs && point.timeMs <= visibleTimeMaxMs
+                    }
+                    if (visible.isEmpty()) null else ChartSegment(segment.origin, visible)
+                }
+                val visiblePoints = visibleSegments.flatMap { it.points }.ifEmpty { chartPoints }
 
                 val voltageMaxAbs = max(
                     MIN_VOLTAGE_RANGE_MV,
@@ -108,14 +115,7 @@ fun EcgLeadChart(
                 ).toFloat()
                 val voltageRange = voltageMaxAbs * 2f
 
-                drawGrid(
-                    chartLeft = chartLeft,
-                    chartRight = chartRight,
-                    chartTop = chartTop,
-                    chartBottom = chartBottom,
-                    minorColor = gridMinorColor,
-                    majorColor = gridMajorColor
-                )
+                drawGrid(chartLeft, chartRight, chartTop, chartBottom, gridMinorColor, gridMajorColor)
 
                 drawLine(
                     color = axisColor,
@@ -124,43 +124,26 @@ fun EcgLeadChart(
                     strokeWidth = 1.dp.toPx()
                 )
 
-                drawYAxisLabels(
-                    chartLeft = chartLeft,
-                    chartTop = chartTop,
-                    chartBottom = chartBottom,
-                    voltageMaxAbs = voltageMaxAbs,
-                    labelColor = labelColor
-                )
+                drawYAxisLabels(chartLeft, chartTop, chartBottom, voltageMaxAbs, labelColor)
+                drawXAxisLabels(chartLeft, chartRight, chartBottom, visibleTimeMinMs, visibleTimeMaxMs, labelColor)
 
-                drawXAxisLabels(
-                    chartLeft = chartLeft,
-                    chartRight = chartRight,
-                    chartBottom = chartBottom,
-                    visibleTimeMinMs = visibleTimeMinMs,
-                    visibleTimeMaxMs = visibleTimeMaxMs,
-                    labelColor = labelColor
-                )
-
-                val path = Path()
-                visiblePoints.forEachIndexed { index, point ->
-                    val x = chartLeft + ((point.timeMs - visibleTimeMinMs) / visibleRangeMs) * chartWidth
-                    val y = chartTop + ((voltageMaxAbs - point.voltageMv.toFloat()) / voltageRange) * chartHeight
-
-                    if (index == 0) {
-                        path.moveTo(x, y)
-                    } else {
-                        path.lineTo(x, y)
-                    }
+                listOf(LeadOriginUi.Reconstructed, LeadOriginUi.Mixed, LeadOriginUi.Digitized).forEach { originToDraw ->
+                    visibleSegments
+                        .filter { it.origin == originToDraw }
+                        .forEach { segment ->
+                            val path = Path()
+                            segment.points.forEachIndexed { index, point ->
+                                val x = chartLeft + ((point.timeMs - visibleTimeMinMs) / visibleRangeMs) * chartWidth
+                                val y = chartTop + ((voltageMaxAbs - point.voltageMv.toFloat()) / voltageRange) * chartHeight
+                                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                            }
+                            drawPath(
+                                path = path,
+                                color = originToDraw.signalColor(colorScheme.primary, colorScheme.tertiary, colorScheme.secondary),
+                                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                            )
+                        }
                 }
-
-                drawPath(
-                    path = path,
-                    color = signalColor,
-                    style = Stroke(
-                        width = 2.dp.toPx(),
-                        cap = StrokeCap.Round
-                    )
-                )
             }
 
             Text(
@@ -193,6 +176,47 @@ fun EcgLeadChart(
     }
 }
 
+private data class ChartSegment(
+    val origin: LeadOriginUi,
+    val points: List<EcgPoint>
+)
+
+private fun buildChartSegments(
+    points: List<EcgPoint>,
+    segments: List<EcgLeadSegment>,
+    fallbackOrigin: LeadOriginUi
+): List<ChartSegment> {
+    if (segments.isNotEmpty()) {
+        return segments
+            .sortedBy { it.startSampleIndex }
+            .mapNotNull { segment ->
+                if (segment.points.isEmpty()) null else ChartSegment(segment.origin.toUiOrigin(), segment.points)
+            }
+    }
+
+    return if (points.isEmpty()) emptyList() else listOf(ChartSegment(fallbackOrigin, points))
+}
+
+private fun EcgLeadOrigin.toUiOrigin(): LeadOriginUi {
+    return when (this) {
+        EcgLeadOrigin.DIGITIZED -> LeadOriginUi.Digitized
+        EcgLeadOrigin.RECONSTRUCTED -> LeadOriginUi.Reconstructed
+        EcgLeadOrigin.MIXED -> LeadOriginUi.Mixed
+    }
+}
+
+private fun LeadOriginUi.signalColor(
+    digitizedColor: Color,
+    reconstructedColor: Color,
+    mixedColor: Color
+): Color {
+    return when (this) {
+        LeadOriginUi.Digitized -> digitizedColor
+        LeadOriginUi.Reconstructed -> reconstructedColor
+        LeadOriginUi.Mixed -> mixedColor
+    }
+}
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGrid(
     chartLeft: Float,
     chartRight: Float,
@@ -202,7 +226,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGrid(
     majorColor: Color
 ) {
     val minorStep = 8.dp.toPx()
-
     var x = chartLeft
     var index = 0
     while (x <= chartRight) {
@@ -242,15 +265,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawYAxisLabels(
     val paint = axisLabelPaint(labelColor)
     val values = listOf(voltageMaxAbs, 0f, -voltageMaxAbs)
     val chartHeight = chartBottom - chartTop
-
     values.forEach { value ->
         val y = chartTop + ((voltageMaxAbs - value) / (voltageMaxAbs * 2f)) * chartHeight
-        drawContext.canvas.nativeCanvas.drawText(
-            formatAxisValue(value),
-            2.dp.toPx(),
-            y + 4.dp.toPx(),
-            paint
-        )
+        drawContext.canvas.nativeCanvas.drawText(formatAxisValue(value), 2.dp.toPx(), y + 4.dp.toPx(), paint)
     }
 }
 
@@ -268,7 +285,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawXAxisLabels(
     val endSeconds = visibleTimeMaxMs / 1000f
     val firstTick = ceil(startSeconds).toInt()
     val lastTick = floor(endSeconds).toInt()
-
     if (lastTick < firstTick) return
 
     for (tick in firstTick..lastTick) {
@@ -279,12 +295,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawXAxisLabels(
             end = Offset(x, chartBottom + 4.dp.toPx()),
             strokeWidth = 1.dp.toPx()
         )
-        drawContext.canvas.nativeCanvas.drawText(
-            "${tick}s",
-            x - 8.dp.toPx(),
-            chartBottom + 18.dp.toPx(),
-            paint
-        )
+        drawContext.canvas.nativeCanvas.drawText("${tick}s", x - 8.dp.toPx(), chartBottom + 18.dp.toPx(), paint)
     }
 }
 
@@ -296,11 +307,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.axisLabelPaint(colo
 }
 
 private fun formatAxisValue(value: Float): String {
-    return if (abs(value) >= 1f) {
-        value.toInt().toString()
-    } else {
-        String.format("%.1f", value)
-    }
+    return if (abs(value) >= 1f) value.toInt().toString() else String.format("%.1f", value)
 }
 
 private const val MIN_ZOOM_X = 1f
