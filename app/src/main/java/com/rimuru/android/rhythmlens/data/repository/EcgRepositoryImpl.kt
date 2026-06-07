@@ -179,8 +179,6 @@ class EcgRepositoryImpl @Inject constructor(
                             signal = signal
                         )
                     )
-
-                    ecgDao.insert(record.toEntity())
                 }
             }
         }
