@@ -16,6 +16,9 @@ interface EcgDao {
     @Query("SELECT * FROM ecg_records WHERE id = :id")
     fun getById(id: String): Flow<EcgRecordEntity?>
 
+    @Query("SELECT * FROM ecg_records WHERE id = :id")
+    suspend fun getByIdOnce(id: String): EcgRecordEntity?
+
     @Query("SELECT * FROM ecg_records WHERE patientId = :patientId ORDER BY recordedAt DESC")
     fun getAllForPatient(patientId: String): Flow<List<EcgRecordEntity>>
 
