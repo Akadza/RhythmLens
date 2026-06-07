@@ -26,6 +26,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -215,13 +216,24 @@ class EcgRepositoryImpl @Inject constructor(
     }
 
     override fun getAllEcgForPatient(patientId: String): Flow<List<EcgRecord>> {
-        return ecgDao.getAllForPatient(patientId).mapLatest { list ->
-            withContext(Dispatchers.IO) {
-                list.map { entity ->
-                    entity.toDomain(signal = buildSignalForRecord(entity))
+        return ecgDao.getAllForPatient(patientId)
+            .onStart {
+                runCatching {
+                    val remoteRecords = syncEcgFromBackend()
+                    if (remoteRecords.none { record -> record.patientId == patientId }) {
+                        database.withTransaction {
+                            ecgDao.deleteAllForPatient(patientId)
+                        }
+                    }
                 }
             }
-        }
+            .mapLatest { list ->
+                withContext(Dispatchers.IO) {
+                    list.map { entity ->
+                        entity.toDomain(signal = buildSignalForRecord(entity))
+                    }
+                }
+            }
     }
 
     override suspend fun deleteEcg(id: String) {
