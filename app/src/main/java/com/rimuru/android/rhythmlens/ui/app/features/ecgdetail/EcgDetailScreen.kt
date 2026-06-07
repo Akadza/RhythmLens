@@ -437,6 +437,7 @@ private fun LeadItem(
             EcgLeadChart(
                 leadName = lead.name,
                 points = lead.points,
+                segments = lead.segments,
                 origin = lead.origin,
                 modifier = Modifier.fillMaxSize()
             )
