@@ -12,6 +12,7 @@ import com.rimuru.android.rhythmlens.data.local.dao.UserDao
 import com.rimuru.android.rhythmlens.data.local.entity.DoctorConclusionEntity
 import com.rimuru.android.rhythmlens.data.local.entity.EcgRecordEntity
 import com.rimuru.android.rhythmlens.data.local.entity.EcgSignalLeadEntity
+import com.rimuru.android.rhythmlens.data.local.entity.EcgSignalSegmentEntity
 import com.rimuru.android.rhythmlens.data.local.entity.PatientEntity
 import com.rimuru.android.rhythmlens.data.local.entity.UserEntity
 
@@ -19,11 +20,12 @@ import com.rimuru.android.rhythmlens.data.local.entity.UserEntity
     entities = [
         EcgRecordEntity::class,
         EcgSignalLeadEntity::class,
+        EcgSignalSegmentEntity::class,
         PatientEntity::class,
         DoctorConclusionEntity::class,
         UserEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
