@@ -155,23 +155,26 @@ class EcgRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveEcg(record: EcgRecord) {
-        ecgDao.insert(record.toEntity())
+        val signal = record.digitizedSignal
 
-        val signal = record.digitizedSignal ?: return
-        ecgSignalDao.deleteLeadsForEcg(record.id)
-        ecgSignalDao.deleteSegmentsForEcg(record.id)
-        ecgSignalDao.insertAll(
-            ecgSignalBinaryMapper.toEntities(
-                ecgId = record.id,
-                signal = signal
+        if (signal != null) {
+            ecgSignalDao.deleteLeadsForEcg(record.id)
+            ecgSignalDao.deleteSegmentsForEcg(record.id)
+            ecgSignalDao.insertAll(
+                ecgSignalBinaryMapper.toEntities(
+                    ecgId = record.id,
+                    signal = signal
+                )
             )
-        )
-        ecgSignalDao.insertSegments(
-            ecgSignalBinaryMapper.toSegmentEntities(
-                ecgId = record.id,
-                signal = signal
+            ecgSignalDao.insertSegments(
+                ecgSignalBinaryMapper.toSegmentEntities(
+                    ecgId = record.id,
+                    signal = signal
+                )
             )
-        )
+        }
+
+        ecgDao.insert(record.toEntity())
     }
 
     override suspend fun syncEcgFromBackend(): List<EcgRecord> {
