@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 interface EcgRepository {
     suspend fun digitizeEcg(imageUri: String): EcgRecord
     suspend fun saveEcg(record: EcgRecord)
+    suspend fun syncEcgFromBackend(): List<EcgRecord>
     fun getEcgById(id: String): Flow<EcgRecord?>
     fun getAllEcgForPatient(patientId: String): Flow<List<EcgRecord>>
     suspend fun deleteEcg(id: String)
