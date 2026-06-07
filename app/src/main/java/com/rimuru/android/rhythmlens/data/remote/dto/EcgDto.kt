@@ -44,3 +44,29 @@ data class EcgPredictionDto(
     @SerialName("detected")
     val isDetected: Boolean
 )
+
+@Serializable
+data class EcgSignalDto(
+    @SerialName("ecg_id")
+    val ecgId: String,
+    @SerialName("sampling_rate")
+    val samplingRate: Int,
+    @SerialName("duration_seconds")
+    val durationSeconds: Double,
+    val leads: List<EcgSignalLeadDto> = emptyList()
+)
+
+@Serializable
+data class EcgSignalLeadDto(
+    val lead: String,
+    val origin: String,
+    val segments: List<EcgSignalSegmentDto> = emptyList()
+)
+
+@Serializable
+data class EcgSignalSegmentDto(
+    val origin: String,
+    @SerialName("start_sample_index")
+    val startSampleIndex: Int,
+    val voltage: List<Double> = emptyList()
+)
