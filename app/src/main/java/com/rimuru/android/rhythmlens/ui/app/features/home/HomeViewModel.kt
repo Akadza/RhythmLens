@@ -14,6 +14,7 @@ import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObservePatientByIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
+import com.rimuru.android.rhythmlens.domain.usecase.RefreshEcgListUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.SaveEcgUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -41,6 +42,7 @@ class HomeViewModel @Inject constructor(
     private val getEcgListUseCase: GetEcgListUseCase,
     private val saveEcgUseCase: SaveEcgUseCase,
     private val digitizeEcgUseCase: DigitizeEcgUseCase,
+    private val refreshEcgListUseCase: RefreshEcgListUseCase,
     private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
     private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
     private val observePatientByIdUseCase: ObservePatientByIdUseCase
@@ -53,6 +55,7 @@ class HomeViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     init {
+        refreshDashboardFromBackend()
         observeDashboard()
     }
 
@@ -97,6 +100,14 @@ class HomeViewModel @Inject constructor(
 
             is HomeEvent.LastRecordClicked -> {
                 _effect.trySend(HomeEffect.NavigateToEcgDetail(event.ecgId))
+            }
+        }
+    }
+
+    private fun refreshDashboardFromBackend() {
+        viewModelScope.launch {
+            runCatching {
+                refreshEcgListUseCase()
             }
         }
     }
@@ -360,7 +371,7 @@ private fun initialState(): HomeUiState {
         selectedPatientId = null,
         selectedPatientName = null,
         totalRecords = 0,
-        linkedDoctorCount = 0,
-        lastRecord = null
+        lastRecord = null,
+        linkedDoctorCount = 0
     )
 }
