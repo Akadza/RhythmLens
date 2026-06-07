@@ -2,6 +2,8 @@ package com.rimuru.android.rhythmlens.data.repository
 
 import android.content.Context
 import android.net.Uri
+import androidx.room.withTransaction
+import com.rimuru.android.rhythmlens.data.local.RhythmLensDatabase
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
 import com.rimuru.android.rhythmlens.data.local.entity.EcgRecordEntity
@@ -37,6 +39,7 @@ import java.time.Instant
 import javax.inject.Inject
 
 class EcgRepositoryImpl @Inject constructor(
+    private val database: RhythmLensDatabase,
     private val ecgDao: EcgDao,
     private val ecgSignalDao: EcgSignalDao,
     private val ecgSignalBinaryMapper: EcgSignalBinaryMapper,
@@ -155,31 +158,37 @@ class EcgRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveEcg(record: EcgRecord) {
-        val signal = record.digitizedSignal
+        withContext(Dispatchers.IO) {
+            database.withTransaction {
+                val signal = record.digitizedSignal
 
-        if (signal != null) {
-            ecgSignalDao.deleteLeadsForEcg(record.id)
-            ecgSignalDao.deleteSegmentsForEcg(record.id)
-            ecgSignalDao.insertAll(
-                ecgSignalBinaryMapper.toEntities(
-                    ecgId = record.id,
-                    signal = signal
-                )
-            )
-            ecgSignalDao.insertSegments(
-                ecgSignalBinaryMapper.toSegmentEntities(
-                    ecgId = record.id,
-                    signal = signal
-                )
-            )
+                ecgDao.insert(record.toEntity())
+
+                if (signal != null) {
+                    ecgSignalDao.deleteLeadsForEcg(record.id)
+                    ecgSignalDao.deleteSegmentsForEcg(record.id)
+                    ecgSignalDao.insertAll(
+                        ecgSignalBinaryMapper.toEntities(
+                            ecgId = record.id,
+                            signal = signal
+                        )
+                    )
+                    ecgSignalDao.insertSegments(
+                        ecgSignalBinaryMapper.toSegmentEntities(
+                            ecgId = record.id,
+                            signal = signal
+                        )
+                    )
+
+                    ecgDao.insert(record.toEntity())
+                }
+            }
         }
-
-        ecgDao.insert(record.toEntity())
     }
 
     override suspend fun syncEcgFromBackend(): List<EcgRecord> {
         return withContext(Dispatchers.IO) {
-            ecgApi.getEcgRecords().map { dto ->
+            val records = ecgApi.getEcgRecords().map { dto ->
                 val status = dto.status.toEcgStatus()
                 val remoteSignal = loadRemoteSignalOrNull(dto.id, status)
                 val cachedSignal = if (remoteSignal == null) {
@@ -191,6 +200,10 @@ class EcgRepositoryImpl @Inject constructor(
                 saveEcg(record)
                 record
             }
+
+            pruneLocalRecordsMissingFromBackend(records)
+
+            records
         }
     }
 
@@ -223,15 +236,38 @@ class EcgRepositoryImpl @Inject constructor(
                 throw remoteDeleteError
             }
 
-            ecgSignalDao.deleteLeadsForEcg(id)
-            ecgSignalDao.deleteSegmentsForEcg(id)
-            ecgDao.delete(id)
+            database.withTransaction {
+                ecgSignalDao.deleteLeadsForEcg(id)
+                ecgSignalDao.deleteSegmentsForEcg(id)
+                ecgDao.delete(id)
+            }
         }
     }
 
     override suspend fun generateSyntheticImage(ecgId: String): String {
         // TODO: Запрос на сервер
         return "https://fake-server.com/synthetic/${ecgId}.png"
+    }
+
+    private suspend fun pruneLocalRecordsMissingFromBackend(records: List<EcgRecord>) {
+        if (records.isEmpty()) {
+            return
+        }
+
+        database.withTransaction {
+            records.groupBy { record -> record.patientId }
+                .forEach { (patientId, patientRecords) ->
+                    val remoteIds = patientRecords.map { record -> record.id }
+                    if (remoteIds.isEmpty()) {
+                        ecgDao.deleteAllForPatient(patientId)
+                    } else {
+                        ecgDao.deleteForPatientExcept(
+                            patientId = patientId,
+                            ids = remoteIds
+                        )
+                    }
+                }
+        }
     }
 
     private suspend fun loadCachedSignalOrNull(ecgId: String): DigitizedEcg? {
