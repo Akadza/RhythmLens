@@ -8,6 +8,7 @@ import androidx.navigation.toRoute
 import com.rimuru.android.rhythmlens.domain.model.DoctorConclusion
 import com.rimuru.android.rhythmlens.domain.model.EcgLead
 import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadSegment
 import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
@@ -360,17 +361,35 @@ class EcgDetailViewModel @Inject constructor(
         val shouldUseFallbackSignal = signal == null && record.status == EcgStatus.PROCESSED
 
         return EcgLead.entries.map { lead ->
-            val origin = signal?.leadOrigins?.get(lead)?.toUiOrigin()
+            val domainOrigin = signal?.leadOrigins?.get(lead)
                 ?: fallbackOriginForLead(lead)
+            val origin = domainOrigin.toUiOrigin()
             val points = signal?.leads?.get(lead)
                 ?: if (shouldUseFallbackSignal) buildFallbackLeadPoints(lead) else emptyList()
+            val segments = signal?.leadSegments?.get(lead)
+                ?: points.toSingleSegment(domainOrigin)
 
             LeadSummaryUi(
                 name = lead.name,
                 origin = origin,
-                points = points
+                points = points,
+                segments = segments
             )
         }
+    }
+
+    private fun List<EcgPoint>.toSingleSegment(origin: EcgLeadOrigin): List<EcgLeadSegment> {
+        if (isEmpty()) {
+            return emptyList()
+        }
+
+        return listOf(
+            EcgLeadSegment(
+                origin = origin,
+                startSampleIndex = 0,
+                points = this
+            )
+        )
     }
 
     private fun buildFallbackLeadPoints(lead: EcgLead): List<EcgPoint> {
@@ -398,14 +417,14 @@ class EcgDetailViewModel @Inject constructor(
         }
     }
 
-    private fun fallbackOriginForLead(lead: EcgLead): LeadOriginUi {
+    private fun fallbackOriginForLead(lead: EcgLead): EcgLeadOrigin {
         return when (lead) {
             EcgLead.V3,
             EcgLead.V4,
             EcgLead.V5,
-            EcgLead.V6 -> LeadOriginUi.Reconstructed
+            EcgLead.V6 -> EcgLeadOrigin.RECONSTRUCTED
 
-            else -> LeadOriginUi.Digitized
+            else -> EcgLeadOrigin.DIGITIZED
         }
     }
 
