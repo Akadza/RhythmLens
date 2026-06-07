@@ -3,6 +3,7 @@ package com.rimuru.android.rhythmlens.ui.app.features.history
 import kotlin.math.roundToInt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
@@ -143,6 +144,12 @@ class HistoryViewModel @Inject constructor(
     ): EcgHistoryItemUi {
         val statusText = processingMessage ?: status.toDisplayText()
         val prediction = primaryPrediction
+        val digitizedLeads = digitizedSignal?.leadOrigins
+            ?.count { (_, origin) -> origin == EcgLeadOrigin.DIGITIZED || origin == EcgLeadOrigin.MIXED }
+            ?: 0
+        val reconstructedLeads = digitizedSignal?.leadOrigins
+            ?.count { (_, origin) -> origin == EcgLeadOrigin.RECONSTRUCTED || origin == EcgLeadOrigin.MIXED }
+            ?: 0
 
         return EcgHistoryItemUi(
             id = id,
@@ -154,8 +161,8 @@ class HistoryViewModel @Inject constructor(
                 else -> statusText
             },
             probability = prediction?.probability?.toPercentInt() ?: 0,
-            digitizedLeads = digitizedSignal?.leads?.size ?: 0,
-            reconstructedLeads = 0,
+            digitizedLeads = digitizedLeads,
+            reconstructedLeads = reconstructedLeads,
             status = status.toUiStatus(),
             hasDoctorConclusion = hasDoctorConclusion
         )
