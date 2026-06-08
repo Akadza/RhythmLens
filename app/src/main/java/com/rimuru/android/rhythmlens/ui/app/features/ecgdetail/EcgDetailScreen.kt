@@ -72,7 +72,7 @@ fun EcgDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.height(56.dp),
+                modifier = Modifier.height(64.dp),
                 title = {
                     Text(
                         text = stringResource(
