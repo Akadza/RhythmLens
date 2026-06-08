@@ -21,10 +21,13 @@ import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgPrediction
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
+import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.domain.repository.EcgRepository
+import com.rimuru.android.rhythmlens.domain.repository.SessionRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
@@ -33,7 +36,9 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.io.File
 import java.time.Instant
@@ -45,6 +50,7 @@ class EcgRepositoryImpl @Inject constructor(
     private val ecgSignalDao: EcgSignalDao,
     private val ecgSignalBinaryMapper: EcgSignalBinaryMapper,
     private val ecgApi: EcgApi,
+    private val sessionRepository: SessionRepository,
     @ApplicationContext private val context: Context
 ) : EcgRepository {
 
@@ -111,12 +117,31 @@ class EcgRepositoryImpl @Inject constructor(
                     filename = tempFile.name,
                     body = requestBody
                 )
+                val ownerUserId = resolveOwnerUserIdForUpload()
 
-                ecgApi.uploadEcg(part)
+                ecgApi.uploadEcg(
+                    file = part,
+                    ownerUserId = ownerUserId.toPlainTextPart()
+                )
             } finally {
                 tempFile.delete()
             }
         }
+    }
+
+    private suspend fun resolveOwnerUserIdForUpload(): String {
+        val currentUser = sessionRepository.observeCurrentUser().first()
+            ?: throw IllegalStateException("Пользователь не найден")
+
+        return when (currentUser.role) {
+            UserRole.PATIENT -> currentUser.id
+            UserRole.DOCTOR -> sessionRepository.observeSelectedPatientId().first()
+                ?: throw IllegalStateException("Выберите пациента перед загрузкой ЭКГ")
+        }
+    }
+
+    private fun String.toPlainTextPart(): RequestBody {
+        return toRequestBody("text/plain".toMediaTypeOrNull())
     }
 
     private suspend fun loadRemoteSignalOrNull(ecgId: String, status: EcgStatus): DigitizedEcg? {
@@ -310,7 +335,7 @@ class EcgRepositoryImpl @Inject constructor(
             status = status.toEcgStatus(),
             processingMessage = null,
             errorMessage = errorMessage,
-            doctorId = null,
+            doctorId = uploadedByUserId.takeIf { it != ownerUserId },
             topPredictions = topPredictions.map { it.toDomain() }
         )
     }
