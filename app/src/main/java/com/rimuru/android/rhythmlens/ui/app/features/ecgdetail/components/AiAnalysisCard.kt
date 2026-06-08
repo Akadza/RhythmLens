@@ -40,7 +40,8 @@ import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 data class DiagnosisProbabilityUi(
     val title: String,
     val code: String?,
-    val probability: Int
+    val probability: Int,
+    val explanation: String
 )
 
 @Composable
@@ -159,7 +160,7 @@ private fun DiagnosisExplanationDialog(
 
                 topItems.forEach { item ->
                     Text(
-                        text = "${item.title}: ${item.explanation()}",
+                        text = "${item.title}: ${item.explanation}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -171,19 +172,6 @@ private fun DiagnosisExplanationDialog(
             }
         }
     )
-}
-
-private fun DiagnosisProbabilityUi.explanation(): String {
-    val value = "${title} ${code.orEmpty()}".lowercase()
-    return when {
-        "normal" in value || "норма" in value -> "признаки без выраженных отклонений в рамках используемой модели."
-        "af" in value || "фибрил" in value -> "возможные признаки нарушения ритма по типу фибрилляции предсердий."
-        "st" in value -> "возможные изменения сегмента ST, требующие врачебной проверки."
-        "block" in value || "блок" in value || "rbbb" in value || "lbbb" in value -> "возможные признаки нарушения внутрижелудочковой проводимости."
-        "mi" in value || "infar" in value || "инфар" in value -> "возможные признаки ишемических или постинфарктных изменений."
-        "hypert" in value || "гиперт" in value -> "возможные признаки гипертрофии отделов сердца."
-        else -> "класс автоматического анализа ЭКГ; итоговая интерпретация требует проверки врачом."
-    }
 }
 
 @Composable
