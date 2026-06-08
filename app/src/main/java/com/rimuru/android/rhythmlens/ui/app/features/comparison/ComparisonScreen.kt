@@ -47,8 +47,10 @@ fun ComparisonScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(56.dp),
                 title = {
                     Text(text = stringResource(R.string.screen_comparison))
                 },
