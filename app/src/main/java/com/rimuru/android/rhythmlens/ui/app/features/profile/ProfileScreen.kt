@@ -99,10 +99,27 @@ private fun ProfileInfoCard(
                 value = state.role.label()
             )
 
-            ProfileInfoRow(
-                title = stringResource(R.string.profile_selected_patient),
-                value = state.selectedPatientId ?: stringResource(R.string.not_specified)
-            )
+            when (state.role) {
+                UserRole.PATIENT -> {
+                    ProfileInfoRow(
+                        title = stringResource(R.string.profile_invite_code),
+                        value = when {
+                            state.isInviteCodeLoading -> stringResource(R.string.processing)
+                            state.inviteCode.isNullOrBlank() -> stringResource(R.string.not_specified)
+                            else -> state.inviteCode
+                        }
+                    )
+                }
+
+                UserRole.DOCTOR -> {
+                    ProfileInfoRow(
+                        title = stringResource(R.string.profile_selected_patient),
+                        value = state.selectedPatientId ?: stringResource(R.string.not_specified)
+                    )
+                }
+
+                null -> Unit
+            }
         }
     }
 }
