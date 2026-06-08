@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 import com.rimuru.android.rhythmlens.ui.theme.SecondaryTeal
@@ -38,6 +39,7 @@ fun PatientsScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -56,16 +58,12 @@ fun PatientsScreen(
             item {
                 PatientsHeaderCard(
                     inviteCodeInput = state.inviteCodeInput,
-                    isAddingPatient = state.isAddingPatient,
                     isAttachingPatient = state.isAttachingPatient,
                     onInviteCodeChange = { value ->
                         onEvent(PatientsEvent.InviteCodeChanged(value))
                     },
                     onAttachPatientClick = {
                         onEvent(PatientsEvent.AttachPatientClicked)
-                    },
-                    onAddTestPatientClick = {
-                        onEvent(PatientsEvent.AddTestPatientClicked)
                     }
                 )
             }
@@ -75,7 +73,9 @@ fun PatientsScreen(
                     Text(
                         text = state.errorMessage,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -104,11 +104,9 @@ fun PatientsScreen(
 @Composable
 private fun PatientsHeaderCard(
     inviteCodeInput: String,
-    isAddingPatient: Boolean,
     isAttachingPatient: Boolean,
     onInviteCodeChange: (String) -> Unit,
-    onAttachPatientClick: () -> Unit,
-    onAddTestPatientClick: () -> Unit
+    onAttachPatientClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -122,7 +120,9 @@ private fun PatientsHeaderCard(
         ) {
             Text(
                 text = stringResource(R.string.patients_header_title),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             Text(
@@ -154,20 +154,6 @@ private fun PatientsHeaderCard(
                         stringResource(R.string.processing)
                     } else {
                         stringResource(R.string.attach_patient_by_code)
-                    }
-                )
-            }
-
-            Button(
-                onClick = onAddTestPatientClick,
-                enabled = !isAddingPatient,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (isAddingPatient) {
-                        stringResource(R.string.processing)
-                    } else {
-                        stringResource(R.string.add_test_patient)
                     }
                 )
             }
@@ -231,6 +217,8 @@ private fun PatientListItem(
                     text = patient.fullName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -247,13 +235,17 @@ private fun PatientListItem(
             Text(
                 text = patient.age,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             Text(
                 text = stringResource(R.string.patient_invite_code_template, patient.inviteCode),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
