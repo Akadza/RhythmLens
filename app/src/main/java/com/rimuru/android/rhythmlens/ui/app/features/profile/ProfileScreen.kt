@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.ui.theme.LocalRhythmThemeController
@@ -42,6 +43,7 @@ fun ProfileScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(56.dp),
                 title = {
                     Text(text = stringResource(R.string.profile))
                 }
@@ -102,11 +104,6 @@ private fun ProfileInfoCard(
             ProfileInfoRow(
                 title = stringResource(R.string.profile_email),
                 value = state.email.ifBlank { stringResource(R.string.not_specified) }
-            )
-
-            ProfileInfoRow(
-                title = stringResource(R.string.profile_current_role),
-                value = state.role.label()
             )
 
             when (state.role) {
@@ -242,13 +239,4 @@ private fun ProfileInfoRow(
     }
 
     Spacer(modifier = Modifier.height(RhythmSpacing.ExtraSmall))
-}
-
-@Composable
-private fun UserRole?.label(): String {
-    return when (this) {
-        UserRole.PATIENT -> stringResource(R.string.role_patient)
-        UserRole.DOCTOR -> stringResource(R.string.role_doctor)
-        null -> stringResource(R.string.not_specified)
-    }
 }
