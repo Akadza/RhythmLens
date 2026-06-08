@@ -1,7 +1,9 @@
 package com.rimuru.android.rhythmlens.ui.app.features.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,9 +41,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSize
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
+import com.rimuru.android.rhythmlens.ui.theme.WarningAmber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +61,7 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(56.dp),
                 title = {
                     Text(
                         text = stringResource(R.string.app_name),
@@ -67,12 +73,22 @@ fun HomeScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    onEvent(HomeEvent.AddEcgClicked)
+                    if (!state.isCreatingTestEcg) {
+                        onEvent(HomeEvent.AddEcgClicked)
+                    }
                 },
                 modifier = Modifier.size(RhythmSize.Fab),
                 shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = if (state.isCreatingTestEcg) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                contentColor = if (state.isCreatingTestEcg) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onPrimary
+                }
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
@@ -81,7 +97,7 @@ fun HomeScreen(
                 )
             }
         },
-        floatingActionButtonPosition = FabPosition.End
+        floatingActionButtonPosition = FabPosition.Center
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -118,6 +134,7 @@ fun HomeScreen(
             item {
                 LastEcgCard(
                     record = state.lastRecord,
+                    isProcessingNewRecord = state.isCreatingTestEcg,
                     onClick = { ecgId ->
                         onEvent(HomeEvent.LastRecordClicked(ecgId))
                     }
@@ -150,6 +167,7 @@ fun HomeScreen(
             }
         ) {
             AddEcgBottomSheetContent(
+                isEnabled = !state.isCreatingTestEcg,
                 onScanClick = {
                     onEvent(HomeEvent.ScanClicked)
                 },
@@ -209,13 +227,15 @@ private fun WelcomeCard(
 @Composable
 private fun LastEcgCard(
     record: LastEcgUi?,
+    isProcessingNewRecord: Boolean,
     onClick: (String) -> Unit
 ) {
+    val isClickable = record != null && !isProcessingNewRecord
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .then(
-                if (record != null) {
+                if (isClickable) {
                     Modifier.clickable {
                         onClick(record.id)
                     }
@@ -238,7 +258,9 @@ private fun LastEcgCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (record == null) {
+            if (isProcessingNewRecord) {
+                ProcessingRecordContent()
+            } else if (record == null) {
                 Text(
                     text = stringResource(R.string.last_ecg_empty),
                     style = MaterialTheme.typography.bodyMedium,
@@ -285,6 +307,35 @@ private fun LastEcgCard(
             }
         }
     }
+}
+
+@Composable
+private fun ProcessingRecordContent() {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(RhythmSpacing.Small),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(color = WarningAmber, shape = CircleShape)
+        )
+        Text(
+            text = stringResource(R.string.status_processing),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+
+    Text(
+        text = stringResource(R.string.ecg_processing_placeholder),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 @Composable
@@ -350,6 +401,7 @@ private fun StatItem(
 
 @Composable
 private fun AddEcgBottomSheetContent(
+    isEnabled: Boolean,
     onScanClick: () -> Unit,
     onGalleryClick: () -> Unit,
     onImportClick: () -> Unit
@@ -378,6 +430,7 @@ private fun AddEcgBottomSheetContent(
 
         Button(
             onClick = onScanClick,
+            enabled = isEnabled,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.take_photo))
@@ -385,6 +438,7 @@ private fun AddEcgBottomSheetContent(
 
         FilledTonalButton(
             onClick = onGalleryClick,
+            enabled = isEnabled,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.choose_from_gallery))
@@ -392,6 +446,7 @@ private fun AddEcgBottomSheetContent(
 
         FilledTonalButton(
             onClick = onImportClick,
+            enabled = isEnabled,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.import_file))
