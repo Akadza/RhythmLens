@@ -1,5 +1,6 @@
 package com.rimuru.android.rhythmlens.domain.usecase
 
+import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.domain.repository.PatientRepository
 import com.rimuru.android.rhythmlens.domain.repository.SessionRepository
 import kotlinx.coroutines.flow.first
@@ -11,15 +12,19 @@ class AttachPatientByInviteCodeUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(inviteCode: String): Result<String> {
         val doctor = sessionRepository.observeCurrentUser().first()
-            ?: return Result.failure(IllegalStateException("Текущий пользователь не найден"))
-        val normalizedCode = inviteCode.trim().uppercase()
-        val patient = patientRepository.getPatientByInviteCode(normalizedCode)
-            ?: return Result.failure(IllegalArgumentException("Пациент с таким кодом не найден"))
+            ?: return Result.failure(IllegalStateException("Пользователь не найден"))
 
-        val linkedPatient = patient.copy(doctorId = doctor.id)
-        patientRepository.savePatient(linkedPatient)
-        sessionRepository.setSelectedPatientId(linkedPatient.id)
+        if (doctor.role != UserRole.DOCTOR) {
+            return Result.failure(IllegalStateException("Действие доступно только врачу"))
+        }
 
-        return Result.success(linkedPatient.id)
+        val patient = patientRepository.attachPatientByInviteCode(
+            inviteCode = inviteCode,
+            doctorId = doctor.id
+        )
+
+        sessionRepository.setSelectedPatientId(patient.id)
+
+        return Result.success(patient.id)
     }
 }
