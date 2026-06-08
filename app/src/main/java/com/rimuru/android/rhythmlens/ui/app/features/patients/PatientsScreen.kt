@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
+import com.rimuru.android.rhythmlens.ui.theme.SecondaryTeal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,7 +212,7 @@ private fun PatientListItem(
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = if (patient.isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
+                SecondaryTeal.copy(alpha = 0.16f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
