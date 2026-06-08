@@ -42,13 +42,21 @@ SEGMENT_SECONDS = 2.5
 TOTAL_SECONDS = 10.0
 
 PAPER_WIDTH_MM = 270
-PAPER_HEIGHT_MM = 150
+PAPER_HEIGHT_MM = 120
 MARGIN_LEFT_MM = 10
-MARGIN_TOP_MM = 10
-ROW_HEIGHT_MM = 30
-RHYTHM_ROW_TOP_MM = 105
-SIGNAL_WIDTH_MM = 250
+MARGIN_TOP_MM = 7
+ROW_HEIGHT_MM = 24
+RHYTHM_ROW_TOP_MM = 82
 SEGMENT_WIDTH_MM = 62.5
+
+DISPLAY_TARGET_MV = 0.70
+DISPLAY_MAX_MV = 1.05
+
+PAPER_BACKGROUND = (255, 252, 250)
+SMALL_GRID_COLOR = (255, 224, 224)
+LARGE_GRID_COLOR = (255, 185, 185)
+TRACE_COLOR = (25, 25, 25)
+TEXT_COLOR = (35, 35, 35)
 
 
 @app.get("/health")
@@ -70,12 +78,12 @@ def generate(request: SyntheticRequest):
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "synthetic_ecg.png"
 
-    time_values, values_by_lead = read_completed_csv(csv_path)
+    _, values_by_lead = read_completed_csv(csv_path)
     render_3x4_with_rhythm(
         values_by_lead=values_by_lead,
         output_path=output_path,
-        title=f"RhythmLens synthetic ECG · layout {layout}",
-        footer="25 mm/s · 10 mm/mV · generated from completed digital ECG signal",
+        title=f"RhythmLens · {layout}",
+        footer="25 mm/s · 10 mm/mV · display-normalized completed ECG signal",
     )
 
     return SyntheticResponse(
@@ -149,20 +157,25 @@ def render_3x4_with_rhythm(
 ) -> None:
     width_px = PAPER_WIDTH_MM * MM_TO_PX
     height_px = PAPER_HEIGHT_MM * MM_TO_PX
-    image = Image.new("RGB", (width_px, height_px), "white")
+    image = Image.new("RGB", (width_px, height_px), PAPER_BACKGROUND)
     draw = ImageDraw.Draw(image)
 
     draw_grid(draw, width_px, height_px)
     font = ImageFont.load_default()
-    draw.text((MARGIN_LEFT_MM * MM_TO_PX, 4 * MM_TO_PX), title, fill=(20, 20, 20), font=font)
+    draw.text((MARGIN_LEFT_MM * MM_TO_PX, 3 * MM_TO_PX), title, fill=TEXT_COLOR, font=font)
 
     for row_index, row in enumerate(LAYOUT_3X4_RHYTHM_II):
-        baseline_mm = MARGIN_TOP_MM + 13 + row_index * ROW_HEIGHT_MM
+        baseline_mm = MARGIN_TOP_MM + 12 + row_index * ROW_HEIGHT_MM
         for column_index, lead in enumerate(row):
             start_time = column_index * SEGMENT_SECONDS
             end_time = start_time + SEGMENT_SECONDS
             x0_mm = MARGIN_LEFT_MM + column_index * SEGMENT_WIDTH_MM
-            draw.text((int(x0_mm * MM_TO_PX), int((baseline_mm - 12) * MM_TO_PX)), lead, fill=(0, 0, 0), font=font)
+            draw.text(
+                (int(x0_mm * MM_TO_PX), int((baseline_mm - 10) * MM_TO_PX)),
+                lead,
+                fill=TEXT_COLOR,
+                font=font,
+            )
             draw_lead_segment(
                 draw=draw,
                 values=values_by_lead.get(lead, []),
@@ -172,8 +185,13 @@ def render_3x4_with_rhythm(
                 baseline_mm=baseline_mm,
             )
 
-    rhythm_baseline_mm = RHYTHM_ROW_TOP_MM + 13
-    draw.text((MARGIN_LEFT_MM * MM_TO_PX, int((rhythm_baseline_mm - 12) * MM_TO_PX)), RHYTHM_LEAD, fill=(0, 0, 0), font=font)
+    rhythm_baseline_mm = RHYTHM_ROW_TOP_MM + 12
+    draw.text(
+        (MARGIN_LEFT_MM * MM_TO_PX, int((rhythm_baseline_mm - 10) * MM_TO_PX)),
+        RHYTHM_LEAD,
+        fill=TEXT_COLOR,
+        font=font,
+    )
     draw_lead_segment(
         draw=draw,
         values=values_by_lead.get(RHYTHM_LEAD, []),
@@ -183,7 +201,7 @@ def render_3x4_with_rhythm(
         baseline_mm=rhythm_baseline_mm,
     )
 
-    draw.text((MARGIN_LEFT_MM * MM_TO_PX, int((PAPER_HEIGHT_MM - 8) * MM_TO_PX)), footer, fill=(40, 40, 40), font=font)
+    draw.text((MARGIN_LEFT_MM * MM_TO_PX, int((PAPER_HEIGHT_MM - 6) * MM_TO_PX)), footer, fill=TEXT_COLOR, font=font)
     image.save(output_path)
 
 
@@ -192,11 +210,11 @@ def draw_grid(draw: ImageDraw.ImageDraw, width_px: int, height_px: int) -> None:
     large = LARGE_MM * MM_TO_PX
 
     for x in range(0, width_px + 1, small):
-        color = (255, 224, 224) if x % large else (255, 190, 190)
+        color = SMALL_GRID_COLOR if x % large else LARGE_GRID_COLOR
         draw.line([(x, 0), (x, height_px)], fill=color, width=1)
 
     for y in range(0, height_px + 1, small):
-        color = (255, 224, 224) if y % large else (255, 190, 190)
+        color = SMALL_GRID_COLOR if y % large else LARGE_GRID_COLOR
         draw.line([(0, y), (width_px, y)], fill=color, width=1)
 
 
@@ -217,11 +235,11 @@ def draw_lead_segment(
     if end_index <= start_index:
         return
 
-    raw_segment = values[start_index:end_index]
-    normalized = normalize_values_to_mv(raw_segment)
+    normalized_values = normalize_values_to_mv(values)
+    normalized_segment = normalized_values[start_index:end_index]
     points = []
 
-    for offset, value_mv in enumerate(normalized):
+    for offset, value_mv in enumerate(normalized_segment):
         if value_mv is None:
             continue
         sample_index = start_index + offset
@@ -232,7 +250,7 @@ def draw_lead_segment(
         points.append((int(x_mm * MM_TO_PX), int(y_mm * MM_TO_PX)))
 
     if len(points) >= 2:
-        draw.line(points, fill=(0, 0, 0), width=2)
+        draw.line(points, fill=TRACE_COLOR, width=2)
 
 
 def normalize_values_to_mv(values: list[float | None]) -> list[float | None]:
@@ -242,12 +260,23 @@ def normalize_values_to_mv(values: list[float | None]) -> list[float | None]:
 
     sorted_values = sorted(present)
     center = sorted_values[len(sorted_values) // 2]
-    centered = [value - center for value in present]
-    max_abs = max(abs(value) for value in centered) or 1.0
+    deviations = sorted(abs(value - center) for value in present)
+    robust_amplitude = percentile(deviations, 0.98) or 1.0
+    scale = max(robust_amplitude / DISPLAY_TARGET_MV, 1e-9)
 
-    if max_abs > 10.0:
-        scale = 100.0
-    else:
-        scale = 1.0
+    return [
+        None if value is None else clamp((value - center) / scale, -DISPLAY_MAX_MV, DISPLAY_MAX_MV)
+        for value in values
+    ]
 
-    return [None if value is None else (value - center) / scale for value in values]
+
+def percentile(values: list[float], fraction: float) -> float:
+    if not values:
+        return 0.0
+
+    index = int((len(values) - 1) * fraction)
+    return values[max(0, min(index, len(values) - 1))]
+
+
+def clamp(value: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, value))
