@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
 import com.rimuru.android.rhythmlens.data.local.RhythmLensDatabase
+import com.rimuru.android.rhythmlens.data.local.dao.DoctorConclusionDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgDao
 import com.rimuru.android.rhythmlens.data.local.dao.EcgSignalDao
 import com.rimuru.android.rhythmlens.data.local.entity.EcgRecordEntity
@@ -48,6 +49,7 @@ class EcgRepositoryImpl @Inject constructor(
     private val database: RhythmLensDatabase,
     private val ecgDao: EcgDao,
     private val ecgSignalDao: EcgSignalDao,
+    private val doctorConclusionDao: DoctorConclusionDao,
     private val ecgSignalBinaryMapper: EcgSignalBinaryMapper,
     private val ecgApi: EcgApi,
     private val sessionRepository: SessionRepository,
@@ -274,6 +276,7 @@ class EcgRepositoryImpl @Inject constructor(
             database.withTransaction {
                 ecgSignalDao.deleteLeadsForEcg(id)
                 ecgSignalDao.deleteSegmentsForEcg(id)
+                doctorConclusionDao.deleteByEcgId(id)
                 ecgDao.delete(id)
             }
         }
