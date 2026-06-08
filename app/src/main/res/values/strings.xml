@@ -80,7 +80,7 @@
     <string name="ai_analysis_result">Результат ИИ-анализа</string>
     <string name="ai_result_requires_review">Результат требует проверки специалистом.</string>
     <string name="ai_result_explanation">Расшифровка результатов</string>
-    <string name="ai_result_explanation_intro">Ниже приведены краткие пояснения к наиболее вероятным классам. Они не являются диагнозом.</string>
+    <string name="ai_result_explanation_intro">Ниже приведены краткие пояснения к наиболее вероятным классам.</string>
     <string name="top_probable_classes">Наиболее вероятные классы</string>
 
     <string name="signal_data">Данные сигнала</string>
