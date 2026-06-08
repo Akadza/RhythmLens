@@ -37,6 +37,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -53,6 +55,7 @@ class EcgRepositoryImpl @Inject constructor(
     private val ecgSignalBinaryMapper: EcgSignalBinaryMapper,
     private val ecgApi: EcgApi,
     private val sessionRepository: SessionRepository,
+    private val okHttpClient: OkHttpClient,
     @ApplicationContext private val context: Context
 ) : EcgRepository {
 
@@ -284,7 +287,35 @@ class EcgRepositoryImpl @Inject constructor(
 
     override suspend fun generateSyntheticImage(ecgId: String): String {
         return withContext(Dispatchers.IO) {
-            ecgApi.generateSyntheticImage(ecgId).imageUrl
+            val remote = ecgApi.generateSyntheticImage(ecgId)
+            downloadSyntheticImageToCache(
+                ecgId = ecgId,
+                imageUrl = remote.imageUrl
+            )
+        }
+    }
+
+    private fun downloadSyntheticImageToCache(ecgId: String, imageUrl: String): String {
+        val request = Request.Builder()
+            .url(imageUrl)
+            .get()
+            .build()
+
+        okHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IllegalStateException("Не удалось загрузить синтетическое изображение: HTTP ${response.code}")
+            }
+
+            val body = response.body ?: throw IllegalStateException("Пустой ответ сервера")
+            val outputFile = File(context.cacheDir, "synthetic_ecg_$ecgId.png")
+
+            body.byteStream().use { input ->
+                outputFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            return Uri.fromFile(outputFile).toString()
         }
     }
 
