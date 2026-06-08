@@ -282,9 +282,13 @@ class EcgRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun generateSyntheticImage(ecgId: String): String {
+    override suspend fun generateSyntheticImage(ecgId: String, force: Boolean): String {
         return withContext(Dispatchers.IO) {
-            ecgApi.generateSyntheticImage(ecgId)
+            if (force) {
+                ecgApi.regenerateSyntheticImage(ecgId)
+            } else {
+                ecgApi.generateSyntheticImage(ecgId)
+            }
             downloadSyntheticImageToCache(ecgId)
         }
     }
