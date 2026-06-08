@@ -43,6 +43,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.io.File
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import javax.inject.Inject
 
 class EcgRepositoryImpl @Inject constructor(
@@ -361,7 +364,7 @@ class EcgRepositoryImpl @Inject constructor(
         return EcgRecord(
             id = id,
             patientId = ownerUserId,
-            recordedAt = runCatching { Instant.parse(createdAt) }.getOrDefault(Instant.now()),
+            recordedAt = parseRemoteInstant(createdAt),
             originalImageUrl = null,
             digitizedSignal = signal,
             heartRate = null,
@@ -371,6 +374,14 @@ class EcgRepositoryImpl @Inject constructor(
             doctorId = uploadedByUserId.takeIf { it != ownerUserId },
             topPredictions = topPredictions.map { it.toDomain() }
         )
+    }
+
+    private fun parseRemoteInstant(raw: String): Instant {
+        val value = raw.trim()
+        return runCatching { Instant.parse(value) }
+            .recoverCatching { OffsetDateTime.parse(value).toInstant() }
+            .recoverCatching { LocalDateTime.parse(value).toInstant(ZoneOffset.UTC) }
+            .getOrDefault(Instant.EPOCH)
     }
 
     private fun EcgSignalDto.toDomain(): DigitizedEcg {
