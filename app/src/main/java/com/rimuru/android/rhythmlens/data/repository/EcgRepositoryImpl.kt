@@ -283,8 +283,9 @@ class EcgRepositoryImpl @Inject constructor(
     }
 
     override suspend fun generateSyntheticImage(ecgId: String): String {
-        // TODO: Запрос на сервер
-        return "https://fake-server.com/synthetic/${ecgId}.png"
+        return withContext(Dispatchers.IO) {
+            ecgApi.generateSyntheticImage(ecgId).imageUrl
+        }
     }
 
     private suspend fun pruneLocalRecordsMissingFromBackend(records: List<EcgRecord>) {
