@@ -10,5 +10,5 @@ interface EcgRepository {
     fun getEcgById(id: String): Flow<EcgRecord?>
     fun getAllEcgForPatient(patientId: String): Flow<List<EcgRecord>>
     suspend fun deleteEcg(id: String)
-    suspend fun generateSyntheticImage(ecgId: String): String
+    suspend fun generateSyntheticImage(ecgId: String, force: Boolean = false): String
 }
