@@ -371,6 +371,38 @@ class EcgRepositoryImpl @Inject constructor(
             lead to segments
         }.toMap()
 
+        val flatLeads = leadSegments.mapValues { (_, segments) ->
+            segments
+                .sortedBy { segment -> segment.startSampleIndex }
+                .flatMap { segment -> segment.points }
+        }
+
+        val leadOrigins = leads.mapNotNull { leadDto ->
+            val lead = runCatching { EcgLead.valueOf(leadDto.lead) }.getOrNull() ?: return@mapNotNull null
+            lead to leadDto.origin.toEcgLeadOrigin()
+        }.toMap()
+
+        return DigitizedEcg(
+            leads = flatLeads,
+            leadOrigins = leadOrigins,
+            samplingRate = samplingRate,
+            durationSeconds = durationSeconds,
+            leadSegments = leadSegments
+        )
+    }
+
+    private fun EcgSignalSegmentDto.toDomain(samplingRate: Int): EcgLeadSegment {
+        return EcgLeadSegment(
+            origin = origin.toEcgLeadOrigin(),
+            startSampleIndex = startSampleIndex,
+            points = voltage.mapIndexed { index, value ->
+                val sampleIndex = startSampleIndex + index
+                EcgPoint(
+                    timeMs = sampleIndex * 1000L / samplingRate,
+                    voltageMv = value
+                )
+            }
+        )
     }
 
     private fun EcgPredictionDto.toDomain(): EcgPrediction {
