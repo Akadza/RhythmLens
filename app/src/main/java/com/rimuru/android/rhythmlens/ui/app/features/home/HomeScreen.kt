@@ -230,19 +230,16 @@ private fun LastEcgCard(
     isProcessingNewRecord: Boolean,
     onClick: (String) -> Unit
 ) {
-    val isClickable = record != null && !isProcessingNewRecord
+    val clickModifier = if (record != null && !isProcessingNewRecord) {
+        Modifier.clickable { onClick(record.id) }
+    } else {
+        Modifier
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (isClickable) {
-                    Modifier.clickable {
-                        onClick(record.id)
-                    }
-                } else {
-                    Modifier
-                }
-            ),
+            .then(clickModifier),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
