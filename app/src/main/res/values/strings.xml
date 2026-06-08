@@ -117,6 +117,7 @@
     <string name="profile_email">Email</string>
     <string name="profile_current_role">Текущая роль</string>
     <string name="profile_selected_patient">Выбранный пациент</string>
+    <string name="profile_invite_code">Код приглашения</string>
     <string name="profile_dev_role_switcher">Режим роли</string>
     <string name="profile_dev_role_switcher_description">Временный переключатель для проверки интерфейса врача и пациента до подключения авторизации.</string>
     <string name="profile_session">Сессия</string>
@@ -132,7 +133,7 @@
     <string name="patient_selected">Выбран</string>
     <string name="patient_invite_code_template">Код пациента: %1$s</string>
     <string name="patient_invite_code">Код пациента</string>
-    <string name="patient_invite_code_hint">Например, PAT-123ABC</string>
+    <string name="patient_invite_code_hint">Например, RL-1234-ABCD</string>
     <string name="attach_patient_by_code">Добавить по коду</string>
 
     <string name="lead_i">I</string>
