@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.max
@@ -242,7 +241,6 @@ class ComparisonViewModel @Inject constructor(
             val metric = comparePoints(lead.basePoints, lead.comparedPoints) ?: return@mapNotNull null
             lead.name to metric
         }
-        val averageDifference = leadMetrics.map { (_, metric) -> metric.meanAbsDiffMv }.averageOrNull()
         val maxDifferenceLead = leadMetrics.maxByOrNull { (_, metric) -> metric.meanAbsDiffMv }
         val basePrediction = base.primaryPrediction.toReadablePrediction()
         val comparedPrediction = compared.primaryPrediction.toReadablePrediction()
@@ -253,12 +251,9 @@ class ComparisonViewModel @Inject constructor(
         }
 
         val points = buildList {
-            add("Перед наложением каждое отведение сравниваемой ЭКГ автоматически выровнено по первому выраженному комплексу.")
-            averageDifference?.let { value ->
-                add("Среднее абсолютное расхождение по общим отведениям: ${value.formatMv()} мВ.")
-            }
-            maxDifferenceLead?.let { (leadName, metric) ->
-                add("Наибольшее расхождение отмечено в отведении $leadName: ${metric.meanAbsDiffMv.formatMv()} мВ, коэффициент сходства ${metric.correlation.formatCorrelation()}.")
+            add("Перед наложением каждое отведение сравниваемой ЭКГ автоматически выровнено по форме первого участка сигнала.")
+            maxDifferenceLead?.let { (leadName, _) ->
+                add("Наибольшее расхождение формы сигнала отмечено в отведении $leadName.")
             }
             add(predictionText)
             add("Автоматическое сравнение является ориентировочным и не заменяет врачебную оценку формы комплексов, интервалов и сегмента ST.")
@@ -332,90 +327,266 @@ class ComparisonViewModel @Inject constructor(
     }
 
     private fun estimateShiftMs(basePoints: List<EcgPoint>, comparedPoints: List<EcgPoint>): Long? {
-        val basePeakTime = estimateFirstQrsPeakTimeMs(basePoints) ?: return null
-        val comparedPeakTime = estimateFirstQrsPeakTimeMs(comparedPoints) ?: return null
-        val shift = basePeakTime - comparedPeakTime
-        return shift.coerceIn(-MAX_ALIGNMENT_SHIFT_MS, MAX_ALIGNMENT_SHIFT_MS)
-    }
-
-    private fun estimateFirstQrsPeakTimeMs(points: List<EcgPoint>): Long? {
-        if (points.size < MIN_POINTS_FOR_COMPARISON) {
+        val baseSamples = buildAlignmentSamples(basePoints)
+        val comparedSamples = buildAlignmentSamples(comparedPoints)
+        if (baseSamples.size < MIN_ALIGNMENT_PAIRS || comparedSamples.size < MIN_ALIGNMENT_PAIRS) {
             return null
         }
 
-        val sortedPoints = points.sortedBy { point -> point.timeMs }
-        val values = sortedPoints.map { point -> point.voltageMv }
-        val baseline = median(values)
-        val centeredAbs = values.map { value -> abs(value - baseline) }
-        val threshold = max(MIN_QRS_THRESHOLD_MV, percentile(centeredAbs, 0.95) * QRS_THRESHOLD_FRACTION)
-        var lastPeakTime = Long.MIN_VALUE / 2
-
-        sortedPoints.forEachIndexed { index, point ->
-            if (point.timeMs > FIRST_QRS_SEARCH_WINDOW_MS) {
-                return null
-            }
-            if (index == 0 || index == sortedPoints.lastIndex) {
-                return@forEachIndexed
-            }
-
-            val value = centeredAbs[index]
-            val isLocalPeak = value >= threshold && value >= centeredAbs[index - 1] && value >= centeredAbs[index + 1]
-            if (isLocalPeak && point.timeMs - lastPeakTime >= MIN_QRS_DISTANCE_MS) {
-                return point.timeMs
-            }
-            if (isLocalPeak) {
-                lastPeakTime = point.timeMs
-            }
-        }
-
-        val fallbackPeak = sortedPoints
-            .filter { point -> point.timeMs <= FIRST_QRS_SEARCH_WINDOW_MS }
-            .maxByOrNull { point -> abs(point.voltageMv - baseline) }
+        val coarseShifts = (buildCandidateShifts(baseSamples, comparedSamples) + buildCoarseShifts())
+            .map { shift -> shift.coerceIn(-MAX_ALIGNMENT_SHIFT_MS, MAX_ALIGNMENT_SHIFT_MS) }
+            .distinct()
+        val coarseBest = coarseShifts
+            .mapNotNull { shift -> scoreAlignmentShift(baseSamples, comparedSamples, shift) }
+            .maxByOrNull { score -> score.score }
             ?: return null
-        val fallbackAmplitude = abs(fallbackPeak.voltageMv - baseline)
-        return fallbackPeak.timeMs.takeIf { fallbackAmplitude >= threshold }
+
+        val refinedBest = buildRefinedShifts(coarseBest.shiftMs)
+            .mapNotNull { shift -> scoreAlignmentShift(baseSamples, comparedSamples, shift) }
+            .maxByOrNull { score -> score.score }
+            ?: coarseBest
+
+        return refinedBest
+            .takeIf { score -> score.score >= MIN_ALIGNMENT_SCORE && score.pairs >= MIN_ALIGNMENT_PAIRS }
+            ?.shiftMs
     }
 
-    private fun List<EcgPoint>.shiftPointsAndCrop(
-        shiftMs: Long,
-        minTimeMs: Long,
-        maxTimeMs: Long
-    ): List<EcgPoint> {
-        return mapNotNull { point ->
-            val shiftedTime = point.timeMs + shiftMs
-            if (shiftedTime < minTimeMs || shiftedTime > maxTimeMs) {
-                null
+    private fun buildAlignmentSamples(points: List<EcgPoint>): List<AlignmentSample> {
+        val sortedPoints = points
+            .asSequence()
+            .filter { point -> point.timeMs in 0L..ALIGNMENT_WINDOW_MS }
+            .sortedBy { point -> point.timeMs }
+            .toList()
+        if (sortedPoints.size < MIN_POINTS_FOR_COMPARISON) {
+            return emptyList()
+        }
+
+        val rawValues = sortedPoints.map { point -> point.voltageMv }
+        val baseline = median(rawValues)
+        val centeredValues = rawValues.map { value -> value - baseline }
+        val amplitudeScale = max(
+            MIN_ALIGNMENT_SCALE_MV,
+            percentile(centeredValues.map { value -> abs(value) }, 0.95)
+        )
+        val normalizedValues = centeredValues.map { value ->
+            (value / amplitudeScale).coerceIn(-MAX_NORMALIZED_AMPLITUDE, MAX_NORMALIZED_AMPLITUDE)
+        }
+        val rawEnergy = normalizedValues.mapIndexed { index, value ->
+            val slope = if (index == 0 || index == normalizedValues.lastIndex) {
+                0.0
             } else {
-                point.copy(timeMs = shiftedTime)
+                abs(normalizedValues[index + 1] - normalizedValues[index - 1]) / 2.0
             }
+            abs(value) + slope * QRS_SLOPE_WEIGHT
+        }
+        val smoothedEnergy = rawEnergy.mapIndexed { index, value ->
+            val previous = rawEnergy.getOrElse(index - 1) { value }
+            val next = rawEnergy.getOrElse(index + 1) { value }
+            (previous + value * 2.0 + next) / 4.0
+        }
+
+        return sortedPoints.mapIndexed { index, point ->
+            AlignmentSample(
+                timeMs = point.timeMs,
+                value = normalizedValues[index],
+                energy = smoothedEnergy[index]
+            )
         }
     }
 
-    private fun List<EcgLeadSegment>.shiftSegmentsAndCrop(
-        shiftMs: Long,
-        minTimeMs: Long,
-        maxTimeMs: Long
-    ): List<EcgLeadSegment> {
-        return mapNotNull { segment ->
-            val points = segment.points.shiftPointsAndCrop(
-                shiftMs = shiftMs,
-                minTimeMs = minTimeMs,
-                maxTimeMs = maxTimeMs
-            )
-            if (points.isEmpty()) {
-                null
-            } else {
-                segment.copy(points = points)
+    private fun detectAlignmentPeaks(samples: List<AlignmentSample>): List<AlignmentPeak> {
+        if (samples.size < MIN_POINTS_FOR_COMPARISON) {
+            return emptyList()
+        }
+
+        val energyValues = samples.map { sample -> sample.energy }
+        val threshold = max(MIN_ALIGNMENT_ENERGY, percentile(energyValues, 0.90) * PEAK_ENERGY_FRACTION)
+        val potentialPeaks = samples.indices
+            .drop(1)
+            .dropLast(1)
+            .mapNotNull { index ->
+                val current = samples[index]
+                if (
+                    current.energy >= threshold &&
+                    current.energy >= samples[index - 1].energy &&
+                    current.energy >= samples[index + 1].energy
+                ) {
+                    AlignmentPeak(
+                        timeMs = current.timeMs,
+                        strength = current.energy
+                    )
+                } else {
+                    null
+                }
             }
+            .sortedByDescending { peak -> peak.strength }
+
+        val accepted = mutableListOf<AlignmentPeak>()
+        potentialPeaks.forEach { peak ->
+            val isFarEnough = accepted.none { acceptedPeak ->
+                abs(acceptedPeak.timeMs - peak.timeMs) < MIN_QRS_DISTANCE_MS
+            }
+            if (isFarEnough) {
+                accepted.add(peak)
+            }
+        }
+
+        return accepted.sortedBy { peak -> peak.timeMs }
+    }
+
+    private fun buildCandidateShifts(
+        baseSamples: List<AlignmentSample>,
+        comparedSamples: List<AlignmentSample>
+    ): List<Long> {
+        val basePeaks = selectAlignmentPeaks(detectAlignmentPeaks(baseSamples))
+        val comparedPeaks = selectAlignmentPeaks(detectAlignmentPeaks(comparedSamples))
+        val shifts = mutableSetOf<Long>()
+        basePeaks.forEach { basePeak ->
+            comparedPeaks.forEach { comparedPeak ->
+                val shift = basePeak.timeMs - comparedPeak.timeMs
+                if (abs(shift) <= MAX_ALIGNMENT_SHIFT_MS) {
+                    shifts.add(shift)
+                }
+            }
+        }
+        shifts.add(0L)
+        return shifts.toList()
+    }
+
+    private fun selectAlignmentPeaks(peaks: List<AlignmentPeak>): List<AlignmentPeak> {
+        return (peaks.take(MAX_TIME_ORDERED_PEAKS) + peaks.sortedByDescending { peak -> peak.strength }.take(MAX_STRONG_PEAKS))
+            .distinctBy { peak -> peak.timeMs }
+    }
+
+    private fun buildCoarseShifts(): List<Long> {
+        val shifts = mutableListOf<Long>()
+        var shift = -MAX_ALIGNMENT_SHIFT_MS
+        while (shift <= MAX_ALIGNMENT_SHIFT_MS) {
+            shifts.add(shift)
+            shift += COARSE_SHIFT_STEP_MS
+        }
+        return shifts
+    }
+
+    private fun buildRefinedShifts(centerShiftMs: Long): List<Long> {
+        val shifts = mutableListOf<Long>()
+        var shift = centerShiftMs - FINE_SHIFT_RADIUS_MS
+        while (shift <= centerShiftMs + FINE_SHIFT_RADIUS_MS) {
+            shifts.add(shift.coerceIn(-MAX_ALIGNMENT_SHIFT_MS, MAX_ALIGNMENT_SHIFT_MS))
+            shift += FINE_SHIFT_STEP_MS
+        }
+        return shifts.distinct()
+    }
+
+    private fun scoreAlignmentShift(
+        baseSamples: List<AlignmentSample>,
+        comparedSamples: List<AlignmentSample>,
+        shiftMs: Long
+    ): AlignmentScore? {
+        if (baseSamples.isEmpty() || comparedSamples.isEmpty()) {
+            return null
+        }
+
+        val stride = max(1, baseSamples.size / MAX_ALIGNMENT_SAMPLES)
+        var comparedIndex = 0
+        var pairs = 0
+
+        var baseValueSum = 0.0
+        var comparedValueSum = 0.0
+        var baseValueSquareSum = 0.0
+        var comparedValueSquareSum = 0.0
+        var valueProductSum = 0.0
+
+        var baseEnergySum = 0.0
+        var comparedEnergySum = 0.0
+        var baseEnergySquareSum = 0.0
+        var comparedEnergySquareSum = 0.0
+        var energyProductSum = 0.0
+
+        var baseIndex = 0
+        while (baseIndex < baseSamples.size) {
+            val baseSample = baseSamples[baseIndex]
+            while (
+                comparedIndex + 1 < comparedSamples.size &&
+                abs((comparedSamples[comparedIndex + 1].timeMs + shiftMs) - baseSample.timeMs) <=
+                abs((comparedSamples[comparedIndex].timeMs + shiftMs) - baseSample.timeMs)
+            ) {
+                comparedIndex++
+            }
+
+            val comparedSample = comparedSamples[comparedIndex]
+            val shiftedComparedTime = comparedSample.timeMs + shiftMs
+            if (abs(shiftedComparedTime - baseSample.timeMs) <= MAX_PAIR_TIME_DIFF_MS) {
+                baseValueSum += baseSample.value
+                comparedValueSum += comparedSample.value
+                baseValueSquareSum += baseSample.value * baseSample.value
+                comparedValueSquareSum += comparedSample.value * comparedSample.value
+                valueProductSum += baseSample.value * comparedSample.value
+
+                baseEnergySum += baseSample.energy
+                comparedEnergySum += comparedSample.energy
+                baseEnergySquareSum += baseSample.energy * baseSample.energy
+                comparedEnergySquareSum += comparedSample.energy * comparedSample.energy
+                energyProductSum += baseSample.energy * comparedSample.energy
+
+                pairs++
+            }
+
+            baseIndex += stride
+        }
+
+        if (pairs < MIN_ALIGNMENT_PAIRS) {
+            return null
+        }
+
+        val valueCorrelation = pearsonCorrelation(
+            firstSum = baseValueSum,
+            secondSum = comparedValueSum,
+            firstSquareSum = baseValueSquareSum,
+            secondSquareSum = comparedValueSquareSum,
+            productSum = valueProductSum,
+            count = pairs
+        ).coerceAtLeast(0.0)
+        val energyCorrelation = pearsonCorrelation(
+            firstSum = baseEnergySum,
+            secondSum = comparedEnergySum,
+            firstSquareSum = baseEnergySquareSum,
+            secondSquareSum = comparedEnergySquareSum,
+            productSum = energyProductSum,
+            count = pairs
+        ).coerceAtLeast(0.0)
+        val coverage = (pairs.toDouble() / TARGET_ALIGNMENT_PAIRS).coerceAtMost(1.0)
+        val shiftPenalty = abs(shiftMs).toDouble() / MAX_ALIGNMENT_SHIFT_MS * SHIFT_PENALTY_WEIGHT
+        val score = (valueCorrelation * VALUE_CORRELATION_WEIGHT + energyCorrelation * ENERGY_CORRELATION_WEIGHT) * coverage - shiftPenalty
+
+        return AlignmentScore(
+            shiftMs = shiftMs,
+            score = score,
+            pairs = pairs
+        )
+    }
+
+    private fun pearsonCorrelation(
+        firstSum: Double,
+        secondSum: Double,
+        firstSquareSum: Double,
+        secondSquareSum: Double,
+        productSum: Double,
+        count: Int
+    ): Double {
+        val numerator = productSum - (firstSum * secondSum / count)
+        val firstVariance = firstSquareSum - (firstSum * firstSum / count)
+        val secondVariance = secondSquareSum - (secondSum * secondSum / count)
+        val denominator = sqrt(max(0.0, firstVariance) * max(0.0, secondVariance))
+        return if (denominator > 0.0) {
+            (numerator / denominator).coerceIn(-1.0, 1.0)
+        } else {
+            0.0
         }
     }
 
     private fun EcgPrediction?.toReadablePrediction(): String {
         return this?.label ?: "нет данных"
-    }
-
-    private fun List<Double>.averageOrNull(): Double? {
-        return if (isEmpty()) null else average()
     }
 
     private fun median(values: List<Double>): Double {
@@ -430,14 +601,6 @@ class ComparisonViewModel @Inject constructor(
         val sorted = values.sorted()
         val index = ((sorted.size - 1) * fraction).toInt().coerceIn(0, sorted.lastIndex)
         return sorted[index]
-    }
-
-    private fun Double.formatMv(): String {
-        return String.format(Locale.getDefault(), "%.2f", this)
-    }
-
-    private fun Double.formatCorrelation(): String {
-        return String.format(Locale.getDefault(), "%.2f", this)
     }
 
     private data class BaseAndCandidates(
@@ -458,15 +621,51 @@ class ComparisonViewModel @Inject constructor(
         val correlation: Double
     )
 
+    private data class AlignmentSample(
+        val timeMs: Long,
+        val value: Double,
+        val energy: Double
+    )
+
+    private data class AlignmentPeak(
+        val timeMs: Long,
+        val strength: Double
+    )
+
+    private data class AlignmentScore(
+        val shiftMs: Long,
+        val score: Double,
+        val pairs: Int
+    )
+
     private companion object {
         const val MIN_POINTS_FOR_COMPARISON = 20
         const val MAX_COMPARISON_POINTS = 1000
         const val MAX_PAIR_TIME_DIFF_MS = 16L
+
+        const val ALIGNMENT_WINDOW_MS = 3500L
         const val MAX_ALIGNMENT_SHIFT_MS = 700L
-        const val FIRST_QRS_SEARCH_WINDOW_MS = 3500L
+        const val COARSE_SHIFT_STEP_MS = 20L
+        const val FINE_SHIFT_RADIUS_MS = 30L
+        const val FINE_SHIFT_STEP_MS = 2L
+        const val MAX_ALIGNMENT_SAMPLES = 700
+        const val MIN_ALIGNMENT_PAIRS = 60
+        const val TARGET_ALIGNMENT_PAIRS = 280
+        const val MIN_ALIGNMENT_SCORE = 0.18
+
         const val MIN_QRS_DISTANCE_MS = 250L
-        const val MIN_QRS_THRESHOLD_MV = 0.08
-        const val QRS_THRESHOLD_FRACTION = 0.55
+        const val MIN_ALIGNMENT_SCALE_MV = 0.04
+        const val MAX_NORMALIZED_AMPLITUDE = 6.0
+        const val QRS_SLOPE_WEIGHT = 0.55
+        const val MIN_ALIGNMENT_ENERGY = 0.60
+        const val PEAK_ENERGY_FRACTION = 0.72
+        const val MAX_TIME_ORDERED_PEAKS = 6
+        const val MAX_STRONG_PEAKS = 6
+
+        const val VALUE_CORRELATION_WEIGHT = 0.80
+        const val ENERGY_CORRELATION_WEIGHT = 0.20
+        const val SHIFT_PENALTY_WEIGHT = 0.03
+
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
