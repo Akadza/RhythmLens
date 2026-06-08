@@ -585,6 +585,40 @@ class ComparisonViewModel @Inject constructor(
         }
     }
 
+    private fun List<EcgPoint>.shiftPointsAndCrop(
+        shiftMs: Long,
+        minTimeMs: Long,
+        maxTimeMs: Long
+    ): List<EcgPoint> {
+        return mapNotNull { point ->
+            val shiftedTime = point.timeMs + shiftMs
+            if (shiftedTime < minTimeMs || shiftedTime > maxTimeMs) {
+                null
+            } else {
+                point.copy(timeMs = shiftedTime)
+            }
+        }
+    }
+
+    private fun List<EcgLeadSegment>.shiftSegmentsAndCrop(
+        shiftMs: Long,
+        minTimeMs: Long,
+        maxTimeMs: Long
+    ): List<EcgLeadSegment> {
+        return mapNotNull { segment ->
+            val points = segment.points.shiftPointsAndCrop(
+                shiftMs = shiftMs,
+                minTimeMs = minTimeMs,
+                maxTimeMs = maxTimeMs
+            )
+            if (points.isEmpty()) {
+                null
+            } else {
+                segment.copy(points = points)
+            }
+        }
+    }
+
     private fun EcgPrediction?.toReadablePrediction(): String {
         return this?.label ?: "нет данных"
     }
