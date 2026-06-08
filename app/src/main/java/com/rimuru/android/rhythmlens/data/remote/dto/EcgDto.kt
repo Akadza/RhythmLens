@@ -88,3 +88,17 @@ data class DoctorConclusionDto(
 data class SaveDoctorConclusionRequestDto(
     val text: String
 )
+
+@Serializable
+data class SyntheticImageDto(
+    @SerialName("ecg_id")
+    val ecgId: String,
+    @SerialName("image_url")
+    val imageUrl: String,
+    @SerialName("image_path")
+    val imagePath: String,
+    val layout: String,
+    @SerialName("rhythm_lead")
+    val rhythmLead: String,
+    val format: String
+)
