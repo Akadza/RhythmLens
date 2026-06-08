@@ -7,7 +7,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.rimuru.android.rhythmlens.ui.RhythmLensApp
 import com.rimuru.android.rhythmlens.ui.theme.LocalRhythmThemeController
@@ -23,8 +23,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val systemDarkTheme = isSystemInDarkTheme()
-            var isDarkTheme by rememberSaveable {
-                mutableStateOf(systemDarkTheme)
+            val preferences = remember {
+                getSharedPreferences(THEME_PREFERENCES_NAME, MODE_PRIVATE)
+            }
+            var isDarkTheme by remember {
+                mutableStateOf(
+                    preferences.getBoolean(THEME_DARK_KEY, systemDarkTheme)
+                )
             }
 
             RhythmLensTheme(darkTheme = isDarkTheme) {
@@ -32,7 +37,11 @@ class MainActivity : ComponentActivity() {
                     LocalRhythmThemeController provides RhythmThemeController(
                         isDarkTheme = isDarkTheme,
                         onToggleTheme = {
-                            isDarkTheme = !isDarkTheme
+                            val newValue = !isDarkTheme
+                            isDarkTheme = newValue
+                            preferences.edit()
+                                .putBoolean(THEME_DARK_KEY, newValue)
+                                .apply()
                         }
                     )
                 ) {
@@ -40,5 +49,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private companion object {
+        const val THEME_PREFERENCES_NAME = "rhythmlens_theme"
+        const val THEME_DARK_KEY = "is_dark_theme"
     }
 }
