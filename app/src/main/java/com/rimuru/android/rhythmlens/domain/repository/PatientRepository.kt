@@ -11,5 +11,9 @@ interface PatientRepository {
 
     suspend fun savePatient(patient: Patient)
 
+    suspend fun refreshPatientsForDoctor(doctorId: String): List<Patient>
+
+    suspend fun attachPatientByInviteCode(inviteCode: String, doctorId: String): Patient
+
     suspend fun getPatientByInviteCode(inviteCode: String): Patient?
 }
