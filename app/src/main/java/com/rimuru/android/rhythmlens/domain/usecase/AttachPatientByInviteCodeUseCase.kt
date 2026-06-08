@@ -11,20 +11,43 @@ class AttachPatientByInviteCodeUseCase @Inject constructor(
     private val sessionRepository: SessionRepository
 ) {
     suspend operator fun invoke(inviteCode: String): Result<String> {
-        val doctor = sessionRepository.observeCurrentUser().first()
-            ?: return Result.failure(IllegalStateException("Пользователь не найден"))
+        return runCatching {
+            val doctor = sessionRepository.observeCurrentUser().first()
+                ?: throw IllegalStateException("Пользователь не найден")
 
-        if (doctor.role != UserRole.DOCTOR) {
-            return Result.failure(IllegalStateException("Действие доступно только врачу"))
+            if (doctor.role != UserRole.DOCTOR) {
+                throw IllegalStateException("Действие доступно только врачу")
+            }
+
+            val patient = patientRepository.attachPatientByInviteCode(
+                inviteCode = inviteCode,
+                doctorId = doctor.id
+            )
+
+            sessionRepository.setSelectedPatientId(patient.id)
+
+            patient.id
+        }.recoverCatching { throwable ->
+            throw IllegalStateException(throwable.toAttachPatientMessage(), throwable)
         }
+    }
 
-        val patient = patientRepository.attachPatientByInviteCode(
-            inviteCode = inviteCode,
-            doctorId = doctor.id
-        )
+    private fun Throwable.toAttachPatientMessage(): String {
+        val rawMessage = message.orEmpty()
+        return when {
+            rawMessage.contains("404") || rawMessage.contains("not found", ignoreCase = true) -> {
+                "Пациент с таким кодом не найден"
+            }
 
-        sessionRepository.setSelectedPatientId(patient.id)
+            rawMessage.contains("403") || rawMessage.contains("forbidden", ignoreCase = true) -> {
+                "Недостаточно прав для добавления пациента"
+            }
 
-        return Result.success(patient.id)
+            rawMessage.isBlank() -> {
+                "Не удалось добавить пациента по коду"
+            }
+
+            else -> rawMessage
+        }
     }
 }
