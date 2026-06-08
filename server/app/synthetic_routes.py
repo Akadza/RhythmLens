@@ -69,7 +69,6 @@ def generate_or_get_synthetic(record: EcgRecordEntity, db: Session) -> dict:
             "csv_path": record.completed_csv_path,
             "metadata_path": record.digitization_metadata_path,
             "output_dir": output_dir,
-            "layout": "from_metadata",
         },
         timeout=300,
     )
