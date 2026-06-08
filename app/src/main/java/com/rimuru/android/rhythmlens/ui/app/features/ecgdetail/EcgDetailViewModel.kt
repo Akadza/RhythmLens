@@ -18,6 +18,7 @@ import com.rimuru.android.rhythmlens.domain.usecase.GetEcgByIdUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveDoctorConclusionUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.SaveDoctorConclusionUseCase
+import com.rimuru.android.rhythmlens.ui.app.diagnosis.translateDiagnosisLabel
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.DiagnosisProbabilityUi
 import com.rimuru.android.rhythmlens.ui.navigation.EcgDetailDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -438,10 +439,12 @@ class EcgDetailViewModel @Inject constructor(
         return sortedByDescending { prediction -> prediction.probability }
             .take(10)
             .map { prediction ->
+                val diagnosis = translateDiagnosisLabel(prediction.label)
                 DiagnosisProbabilityUi(
-                    title = prediction.label,
+                    title = diagnosis.title,
                     code = null,
-                    probability = prediction.probability.toPercentInt()
+                    probability = prediction.probability.toPercentInt(),
+                    explanation = diagnosis.explanation
                 )
             }
     }
@@ -460,29 +463,38 @@ class EcgDetailViewModel @Inject constructor(
 }
 
 private fun sampleInitialState(ecgId: String): EcgDetailUiState {
+    val sampleAtrialFibrillation = translateDiagnosisLabel("ATRIAL FIBRILLATION")
+    val sampleStChanges = translateDiagnosisLabel("NONSPECIFIC ST ABNORMALITY")
+    val sampleRbbb = translateDiagnosisLabel("RIGHT BUNDLE BRANCH BLOCK")
+    val sampleNormal = translateDiagnosisLabel("NORMAL ECG")
+
     return EcgDetailUiState(
         ecgId = ecgId,
         date = "28.05.2026",
         probabilities = listOf(
             DiagnosisProbabilityUi(
-                title = "Фибрилляция предсердий",
-                code = "AF",
-                probability = 50
+                title = sampleAtrialFibrillation.title,
+                code = null,
+                probability = 50,
+                explanation = sampleAtrialFibrillation.explanation
             ),
             DiagnosisProbabilityUi(
-                title = "ST-изменения",
+                title = sampleStChanges.title,
                 code = null,
-                probability = 20
+                probability = 20,
+                explanation = sampleStChanges.explanation
             ),
             DiagnosisProbabilityUi(
-                title = "Блокада правой ножки пучка Гиса",
+                title = sampleRbbb.title,
                 code = null,
-                probability = 10
+                probability = 10,
+                explanation = sampleRbbb.explanation
             ),
             DiagnosisProbabilityUi(
-                title = "Норма",
+                title = sampleNormal.title,
                 code = null,
-                probability = 5
+                probability = 5,
+                explanation = sampleNormal.explanation
             )
         ),
         signalInfo = SignalInfoUi(
