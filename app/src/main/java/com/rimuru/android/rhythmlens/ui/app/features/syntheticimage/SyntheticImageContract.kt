@@ -10,8 +10,12 @@ data class SyntheticImageUiState(
 sealed interface SyntheticImageEvent {
     data object BackClicked : SyntheticImageEvent
     data object RetryClicked : SyntheticImageEvent
+    data object SaveClicked : SyntheticImageEvent
+    data object ShareClicked : SyntheticImageEvent
 }
 
 sealed interface SyntheticImageEffect {
     data object NavigateBack : SyntheticImageEffect
+    data class SaveImage(val imageUri: String) : SyntheticImageEffect
+    data class ShareImage(val imageUri: String) : SyntheticImageEffect
 }
