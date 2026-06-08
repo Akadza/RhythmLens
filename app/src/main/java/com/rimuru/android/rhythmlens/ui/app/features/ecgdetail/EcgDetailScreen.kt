@@ -43,6 +43,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.rimuru.android.rhythmlens.R
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadOrigin
+import com.rimuru.android.rhythmlens.domain.model.EcgLeadSegment
+import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.UserRole
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.AiAnalysisCard
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.components.EcgLeadChart
@@ -393,7 +396,10 @@ private fun LeadsCard(
             )
 
             visibleLeads.forEach { lead ->
-                LeadItem(lead = lead)
+                LeadItem(
+                    lead = lead,
+                    signalMode = signalMode
+                )
             }
         }
     }
@@ -401,8 +407,15 @@ private fun LeadsCard(
 
 @Composable
 private fun LeadItem(
-    lead: LeadSummaryUi
+    lead: LeadSummaryUi,
+    signalMode: SignalModeUi
 ) {
+    val displaySegments = lead.segments.displaySegmentsFor(signalMode, lead.origin)
+    val displayPoints = when (signalMode) {
+        SignalModeUi.Full -> lead.points
+        SignalModeUi.DigitizedOnly -> displaySegments.flatMap { segment -> segment.points }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Small)
     ) {
@@ -436,13 +449,32 @@ private fun LeadItem(
         ) {
             EcgLeadChart(
                 leadName = lead.name,
-                points = lead.points,
-                segments = lead.segments,
+                points = displayPoints,
+                segments = displaySegments,
                 origin = lead.origin,
                 modifier = Modifier.fillMaxSize()
             )
         }
     }
+}
+
+private fun List<EcgLeadSegment>.displaySegmentsFor(
+    signalMode: SignalModeUi,
+    fallbackOrigin: LeadOriginUi
+): List<EcgLeadSegment> {
+    if (signalMode == SignalModeUi.Full) {
+        return this
+    }
+
+    val digitizedSegments = filter { segment ->
+        segment.origin == EcgLeadOrigin.DIGITIZED || segment.origin == EcgLeadOrigin.MIXED
+    }
+
+    if (digitizedSegments.isNotEmpty()) {
+        return digitizedSegments
+    }
+
+    return if (fallbackOrigin == LeadOriginUi.Digitized && isNotEmpty()) this else emptyList()
 }
 
 @Composable
