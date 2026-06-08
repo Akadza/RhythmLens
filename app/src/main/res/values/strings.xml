@@ -149,9 +149,9 @@
     <string name="role_doctor">Врач</string>
 
     <string name="patients_header_title">Пациенты врача</string>
-    <string name="patients_header_description">Выберите пациента, чтобы просматривать его ЭКГ на главной и в истории. Позже здесь будет добавление по коду пациента.</string>
+    <string name="patients_header_description">Введите код пациента для привязки и выбора его ЭКГ.</string>
     <string name="patients_empty_title">Пациенты не добавлены</string>
-    <string name="patients_empty_body">Добавьте тестового пациента или введите код пациента для привязки.</string>
+    <string name="patients_empty_body">Введите код пациента для привязки.</string>
     <string name="add_test_patient">Добавить тестового пациента</string>
     <string name="patient_selected">Выбран</string>
     <string name="patient_invite_code_template">Код пациента: %1$s</string>
