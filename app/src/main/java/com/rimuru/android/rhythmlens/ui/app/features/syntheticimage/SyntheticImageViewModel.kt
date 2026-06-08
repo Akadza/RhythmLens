@@ -35,7 +35,7 @@ class SyntheticImageViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     init {
-        loadSyntheticImage()
+        loadSyntheticImage(force = false)
     }
 
     fun onEvent(event: SyntheticImageEvent) {
@@ -45,12 +45,24 @@ class SyntheticImageViewModel @Inject constructor(
             }
 
             SyntheticImageEvent.RetryClicked -> {
-                loadSyntheticImage()
+                loadSyntheticImage(force = true)
+            }
+
+            SyntheticImageEvent.SaveClicked -> {
+                _uiState.value.imageUri?.let { imageUri ->
+                    _effect.trySend(SyntheticImageEffect.SaveImage(imageUri))
+                }
+            }
+
+            SyntheticImageEvent.ShareClicked -> {
+                _uiState.value.imageUri?.let { imageUri ->
+                    _effect.trySend(SyntheticImageEffect.ShareImage(imageUri))
+                }
             }
         }
     }
 
-    private fun loadSyntheticImage() {
+    private fun loadSyntheticImage(force: Boolean) {
         viewModelScope.launch {
             _uiState.update { state ->
                 state.copy(
@@ -60,7 +72,7 @@ class SyntheticImageViewModel @Inject constructor(
             }
 
             runCatching {
-                generateSyntheticImageUseCase(destination.ecgId)
+                generateSyntheticImageUseCase(destination.ecgId, force = force)
             }.onSuccess { imageUri ->
                 _uiState.update { state ->
                     state.copy(
