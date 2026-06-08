@@ -3,6 +3,7 @@ package com.rimuru.android.rhythmlens.data.remote.api
 import com.rimuru.android.rhythmlens.data.remote.dto.EcgRecordDto
 import com.rimuru.android.rhythmlens.data.remote.dto.EcgSignalDto
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
@@ -15,7 +16,8 @@ interface EcgApi {
     @Multipart
     @POST("ecg/upload")
     suspend fun uploadEcg(
-        @Part file: MultipartBody.Part
+        @Part file: MultipartBody.Part,
+        @Part("owner_user_id") ownerUserId: RequestBody? = null
     ): EcgRecordDto
 
     @GET("ecg")
