@@ -15,4 +15,7 @@ interface DoctorConclusionDao {
 
     @Query("SELECT * FROM doctor_conclusions WHERE ecgId = :ecgId LIMIT 1")
     fun observeByEcgId(ecgId: String): Flow<DoctorConclusionEntity?>
+
+    @Query("DELETE FROM doctor_conclusions WHERE ecgId = :ecgId")
+    suspend fun deleteByEcgId(ecgId: String)
 }
