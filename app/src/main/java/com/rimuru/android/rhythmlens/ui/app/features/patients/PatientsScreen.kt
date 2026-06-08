@@ -41,7 +41,7 @@ fun PatientsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.height(64.dp),
+                modifier = Modifier.height(88.dp),
                 title = {
                     Text(text = stringResource(R.string.patients))
                 }
