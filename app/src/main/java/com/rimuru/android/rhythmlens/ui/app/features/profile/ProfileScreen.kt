@@ -3,6 +3,7 @@ package com.rimuru.android.rhythmlens.ui.app.features.profile
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,14 +16,18 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.domain.model.UserRole
+import com.rimuru.android.rhythmlens.ui.theme.LocalRhythmThemeController
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +39,7 @@ fun ProfileScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -51,6 +57,10 @@ fun ProfileScreen(
         ) {
             item {
                 ProfileInfoCard(state = state)
+            }
+
+            item {
+                ThemeCard()
             }
 
             item {
@@ -125,6 +135,51 @@ private fun ProfileInfoCard(
 }
 
 @Composable
+private fun ThemeCard() {
+    val themeController = LocalRhythmThemeController.current ?: return
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(RhythmSpacing.ExtraLarge),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(RhythmSpacing.ExtraSmall)
+            ) {
+                Text(
+                    text = stringResource(R.string.profile_appearance),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.profile_dark_theme),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Switch(
+                checked = themeController.isDarkTheme,
+                onCheckedChange = {
+                    themeController.onToggleTheme()
+                }
+            )
+        }
+    }
+}
+
+@Composable
 private fun LogoutCard(
     isLoggingOut: Boolean,
     onLogoutClick: () -> Unit
@@ -142,12 +197,6 @@ private fun LogoutCard(
             Text(
                 text = stringResource(R.string.profile_session),
                 style = MaterialTheme.typography.titleMedium
-            )
-
-            Text(
-                text = stringResource(R.string.profile_logout_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Button(
@@ -178,13 +227,17 @@ private fun ProfileInfoRow(
         Text(
             text = title,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
 
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 
