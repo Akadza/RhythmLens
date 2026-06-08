@@ -6,7 +6,7 @@ import javax.inject.Inject
 class GenerateSyntheticImageUseCase @Inject constructor(
     private val ecgRepository: EcgRepository
 ) {
-    suspend operator fun invoke(id: String): String {
-        return ecgRepository.generateSyntheticImage(id)
+    suspend operator fun invoke(id: String, force: Boolean = false): String {
+        return ecgRepository.generateSyntheticImage(id, force)
     }
 }
