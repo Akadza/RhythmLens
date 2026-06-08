@@ -11,8 +11,8 @@ import com.rimuru.android.rhythmlens.domain.model.EcgPoint
 import com.rimuru.android.rhythmlens.domain.model.EcgPrediction
 import com.rimuru.android.rhythmlens.domain.model.EcgRecord
 import com.rimuru.android.rhythmlens.domain.model.EcgStatus
+import com.rimuru.android.rhythmlens.domain.usecase.GetCachedEcgListUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.GetEcgByIdUseCase
-import com.rimuru.android.rhythmlens.domain.usecase.GetEcgListUseCase
 import com.rimuru.android.rhythmlens.ui.navigation.ComparisonDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,7 +40,7 @@ import kotlin.math.sqrt
 class ComparisonViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getEcgByIdUseCase: GetEcgByIdUseCase,
-    private val getEcgListUseCase: GetEcgListUseCase
+    private val getCachedEcgListUseCase: GetCachedEcgListUseCase
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<ComparisonDestination>()
@@ -87,7 +87,7 @@ class ComparisonViewModel @Inject constructor(
                         flowOf(ComparisonData(baseRecord = null))
                     } else {
                         combine(
-                            getEcgListUseCase(baseRecord.patientId),
+                            getCachedEcgListUseCase(baseRecord.patientId),
                             selectedComparedId
                         ) { records, selectedId ->
                             val candidates = records
