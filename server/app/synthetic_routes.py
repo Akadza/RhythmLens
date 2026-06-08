@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -47,8 +47,8 @@ def validate_synthetic_ready(record: EcgRecordEntity) -> None:
         )
 
 
-def generate_or_get_synthetic(record: EcgRecordEntity, db: Session) -> dict:
-    if record.synthetic_image_path and Path(record.synthetic_image_path).exists():
+def generate_or_get_synthetic(record: EcgRecordEntity, db: Session, force: bool = False) -> dict:
+    if not force and record.synthetic_image_path and Path(record.synthetic_image_path).exists():
         return {
             "image_path": record.synthetic_image_path,
             "layout": "3x4+1R",
@@ -94,6 +94,7 @@ def generate_synthetic_image(
     request: Request,
     current_user: Annotated[UserEntity, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    force: bool = Query(default=False),
 ) -> SyntheticImageResponse:
     record = db.get(EcgRecordEntity, ecg_id)
     if record is None:
@@ -101,7 +102,7 @@ def generate_synthetic_image(
 
     ensure_ecg_access(record, current_user, db)
     validate_synthetic_ready(record)
-    result = generate_or_get_synthetic(record, db)
+    result = generate_or_get_synthetic(record, db, force=force)
 
     return SyntheticImageResponse(
         ecg_id=record.id,
