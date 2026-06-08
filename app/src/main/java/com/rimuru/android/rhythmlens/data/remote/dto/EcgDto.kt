@@ -70,3 +70,21 @@ data class EcgSignalSegmentDto(
     val startSampleIndex: Int,
     val voltage: List<Double> = emptyList()
 )
+
+@Serializable
+data class DoctorConclusionDto(
+    @SerialName("ecg_id")
+    val ecgId: String,
+    @SerialName("doctor_id")
+    val doctorId: String,
+    val text: String,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String
+)
+
+@Serializable
+data class SaveDoctorConclusionRequestDto(
+    val text: String
+)
