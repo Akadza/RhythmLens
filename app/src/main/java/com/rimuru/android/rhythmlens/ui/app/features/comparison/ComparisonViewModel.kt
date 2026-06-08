@@ -32,7 +32,6 @@ import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sqrt
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -182,10 +181,6 @@ class ComparisonViewModel @Inject constructor(
     private fun buildComparisonLeads(base: EcgRecord, compared: EcgRecord): List<ComparisonLeadUi> {
         val baseSignal = base.digitizedSignal
         val comparedSignal = compared.digitizedSignal
-        val globalShiftMs = estimateShiftMs(
-            baseSignal?.leads?.get(EcgLead.II).orEmpty(),
-            comparedSignal?.leads?.get(EcgLead.II).orEmpty()
-        )
 
         return EcgLead.entries.map { lead ->
             val basePoints = baseSignal?.leads?.get(lead).orEmpty()
@@ -194,7 +189,7 @@ class ComparisonViewModel @Inject constructor(
                 ?: basePoints.toSingleSegment(baseSignal?.leadOrigins?.get(lead) ?: EcgLeadOrigin.DIGITIZED)
             val comparedRawSegments = comparedSignal?.leadSegments?.get(lead)
                 ?: comparedRawPoints.toSingleSegment(comparedSignal?.leadOrigins?.get(lead) ?: EcgLeadOrigin.DIGITIZED)
-            val shiftMs = estimateShiftMs(basePoints, comparedRawPoints) ?: globalShiftMs ?: 0L
+            val shiftMs = estimateShiftMs(basePoints, comparedRawPoints) ?: 0L
             val minTimeMs = basePoints.minOfOrNull { point -> point.timeMs } ?: 0L
             val maxTimeMs = basePoints.maxOfOrNull { point -> point.timeMs } ?: Long.MAX_VALUE
             val comparedPoints = comparedRawPoints.shiftPointsAndCrop(
@@ -258,7 +253,7 @@ class ComparisonViewModel @Inject constructor(
         }
 
         val points = buildList {
-            add("Перед наложением сравниваемая ЭКГ автоматически выровнена по первому выраженному комплексу.")
+            add("Перед наложением каждое отведение сравниваемой ЭКГ автоматически выровнено по первому выраженному комплексу.")
             averageDifference?.let { value ->
                 add("Среднее абсолютное расхождение по общим отведениям: ${value.formatMv()} мВ.")
             }
