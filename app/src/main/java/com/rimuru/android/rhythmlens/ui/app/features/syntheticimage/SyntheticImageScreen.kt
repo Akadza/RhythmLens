@@ -6,7 +6,6 @@ import android.widget.ImageView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -31,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
@@ -68,8 +68,8 @@ fun SyntheticImageScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .padding(RhythmSpacing.Large)
                 .verticalScroll(rememberScrollState()),
-            contentPadding = PaddingValues(RhythmSpacing.Large),
             verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Large)
         ) {
             SyntheticDescriptionCard()
@@ -124,7 +124,7 @@ private fun SyntheticPreviewCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = RhythmSpacing.XXLarge * 8)
+                .heightIn(min = 260.dp)
                 .padding(RhythmSpacing.Medium),
             contentAlignment = Alignment.Center
         ) {
@@ -167,7 +167,7 @@ private fun SyntheticPreviewCard(
                         AndroidView(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = RhythmSpacing.XXLarge * 10, max = RhythmSpacing.XXLarge * 24),
+                                .heightIn(min = 320.dp, max = 760.dp),
                             factory = { context ->
                                 ImageView(context).apply {
                                     layoutParams = ViewGroup.LayoutParams(
