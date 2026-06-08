@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 import json
 import math
 import os
+import secrets
 import shutil
+import string
 import urllib.error
 import urllib.request
 import uuid
@@ -11,10 +13,10 @@ from pathlib import Path
 from typing import Annotated
 
 import firebase_admin
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, status
 from firebase_admin import auth, credentials
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, String, Text, create_engine, select
+from sqlalchemy import DateTime, String, Text, create_engine, or_, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 
@@ -59,6 +61,23 @@ class UserEntity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class PatientInviteEntity(Base):
+    __tablename__ = "patient_invites"
+
+    patient_user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    invite_code: Mapped[str] = mapped_column(String, unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DoctorPatientLinkEntity(Base):
+    __tablename__ = "doctor_patient_links"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    doctor_user_id: Mapped[str] = mapped_column(String, index=True)
+    patient_user_id: Mapped[str] = mapped_column(String, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class EcgRecordEntity(Base):
     __tablename__ = "ecg_records"
 
@@ -86,6 +105,7 @@ class EcgRecordEntity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
+
 class EcgPredictionEntity(Base):
     __tablename__ = "ecg_predictions"
 
@@ -95,6 +115,7 @@ class EcgPredictionEntity(Base):
     probability: Mapped[str] = mapped_column(String)
     detected: Mapped[str] = mapped_column(String)
     rank: Mapped[str] = mapped_column(String)
+
 
 class AuthSyncRequest(BaseModel):
     id_token: str = Field(alias="id_token")
@@ -109,6 +130,23 @@ class AuthUserResponse(BaseModel):
     full_name: str
     role: UserRole
     created_at: str
+
+
+class PatientInviteResponse(BaseModel):
+    invite_code: str
+
+
+class PatientResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    invite_code: str
+    created_at: str
+
+
+class AttachPatientRequest(BaseModel):
+    invite_code: str
+
 
 class EcgPredictionResponse(BaseModel):
     label: str
@@ -137,9 +175,11 @@ class EcgRecordResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 class PipelineRequest(BaseModel):
     source_path: str
     output_base_dir: str | None = None
+
 
 class EcgSignalSegmentResponse(BaseModel):
     origin: str
@@ -158,6 +198,7 @@ class EcgSignalResponse(BaseModel):
     sampling_rate: int
     duration_seconds: float
     leads: list[EcgSignalLeadResponse]
+
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -248,6 +289,140 @@ def user_to_response(user: UserEntity) -> AuthUserResponse:
     )
 
 
+def require_role(user: UserEntity, role: UserRole) -> None:
+    if user.role != role.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Only {role.value} users can perform this action",
+        )
+
+
+def normalize_invite_code(invite_code: str) -> str:
+    return "".join(invite_code.upper().split())
+
+
+def generate_invite_code(db: Session) -> str:
+    alphabet = string.ascii_uppercase + string.digits
+
+    for _ in range(20):
+        left = "".join(secrets.choice(alphabet) for _ in range(4))
+        right = "".join(secrets.choice(alphabet) for _ in range(4))
+        code = f"RL-{left}-{right}"
+        existing = db.scalar(
+            select(PatientInviteEntity).where(PatientInviteEntity.invite_code == code)
+        )
+        if existing is None:
+            return code
+
+    return f"RL-{uuid.uuid4().hex[:8].upper()}"
+
+
+def get_or_create_patient_invite(patient: UserEntity, db: Session) -> PatientInviteEntity:
+    require_role(patient, UserRole.PATIENT)
+
+    invite = db.get(PatientInviteEntity, patient.id)
+    if invite is not None:
+        return invite
+
+    invite = PatientInviteEntity(
+        patient_user_id=patient.id,
+        invite_code=generate_invite_code(db),
+        created_at=utc_now(),
+    )
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+    return invite
+
+
+def patient_to_response(patient: UserEntity, db: Session) -> PatientResponse:
+    invite = get_or_create_patient_invite(patient, db)
+    return PatientResponse(
+        id=patient.id,
+        email=patient.email,
+        full_name=patient.full_name,
+        invite_code=invite.invite_code,
+        created_at=patient.created_at.isoformat(),
+    )
+
+
+def doctor_patient_link_id(doctor_user_id: str, patient_user_id: str) -> str:
+    return f"{doctor_user_id}:{patient_user_id}"
+
+
+def is_doctor_linked_to_patient(db: Session, doctor_user_id: str, patient_user_id: str) -> bool:
+    link = db.get(
+        DoctorPatientLinkEntity,
+        doctor_patient_link_id(doctor_user_id, patient_user_id),
+    )
+    return link is not None
+
+
+def get_linked_patient_ids(db: Session, doctor_user_id: str) -> list[str]:
+    links = db.scalars(
+        select(DoctorPatientLinkEntity).where(
+            DoctorPatientLinkEntity.doctor_user_id == doctor_user_id
+        )
+    ).all()
+    return [link.patient_user_id for link in links]
+
+
+def ensure_ecg_access(record: EcgRecordEntity, user: UserEntity, db: Session) -> None:
+    if record.owner_user_id == user.id:
+        return
+
+    if record.uploaded_by_user_id == user.id:
+        return
+
+    if user.role == UserRole.DOCTOR.value and is_doctor_linked_to_patient(
+        db=db,
+        doctor_user_id=user.id,
+        patient_user_id=record.owner_user_id,
+    ):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have access to this ECG record",
+    )
+
+
+def resolve_ecg_owner_for_upload(
+    current_user: UserEntity,
+    owner_user_id: str | None,
+    db: Session,
+) -> str:
+    requested_owner_id = owner_user_id.strip() if owner_user_id else current_user.id
+
+    if requested_owner_id == current_user.id:
+        return current_user.id
+
+    if current_user.role != UserRole.DOCTOR.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors can upload ECG records for another patient",
+        )
+
+    patient = db.get(UserEntity, requested_owner_id)
+    if patient is None or patient.role != UserRole.PATIENT.value:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found",
+        )
+
+    if not is_doctor_linked_to_patient(
+        db=db,
+        doctor_user_id=current_user.id,
+        patient_user_id=patient.id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Doctor is not linked to this patient",
+        )
+
+    return patient.id
+
+
 def parse_predictions(raw: str | None) -> list[dict]:
     if not raw:
         return []
@@ -256,6 +431,7 @@ def parse_predictions(raw: str | None) -> list[dict]:
         return value if isinstance(value, list) else []
     except Exception:
         return []
+
 
 def extract_top_predictions(analyzed: dict) -> list[dict]:
     predictions_payload = analyzed.get("predictions")
@@ -306,6 +482,7 @@ def extract_top_predictions(analyzed: dict) -> list[dict]:
 
     return normalized_predictions
 
+
 def ecg_to_response(record: EcgRecordEntity) -> EcgRecordResponse:
     return EcgRecordResponse(
         id=record.id,
@@ -324,19 +501,6 @@ def ecg_to_response(record: EcgRecordEntity) -> EcgRecordResponse:
         error_message=record.error_message,
         created_at=record.created_at.isoformat(),
         updated_at=record.updated_at.isoformat(),
-    )
-
-
-def ensure_ecg_access(record: EcgRecordEntity, user: UserEntity) -> None:
-    if record.owner_user_id == user.id:
-        return
-
-    if record.uploaded_by_user_id == user.id:
-        return
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="You do not have access to this ECG record",
     )
 
 
@@ -379,6 +543,7 @@ def keep_only_needed_digitizer_outputs(digitized: dict) -> None:
                 png_path.unlink(missing_ok=True)
         except Exception:
             pass
+
 
 ECG_LEADS = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 
@@ -586,6 +751,7 @@ def build_ecg_signal_response(record: EcgRecordEntity) -> EcgSignalResponse:
         leads=response_leads,
     )
 
+
 def run_pipeline_for_record(
     record: EcgRecordEntity,
     source_path: str,
@@ -661,7 +827,7 @@ def run_pipeline_for_record(
             ensure_ascii=False,
         )
         remove_digitizer_pngs(digitizer_dir)
-        
+
         record.status = EcgStatus.PROCESSED.value
         record.error_message = None
         record.updated_at = utc_now()
@@ -744,6 +910,9 @@ def register(
     db.commit()
     db.refresh(user)
 
+    if user.role == UserRole.PATIENT.value:
+        get_or_create_patient_invite(user, db)
+
     return user_to_response(user)
 
 
@@ -765,36 +934,90 @@ def login(
             detail="User profile is not registered",
         )
 
+    if user.role == UserRole.PATIENT.value:
+        get_or_create_patient_invite(user, db)
+
     return user_to_response(user)
 
-@app.get("/ecg/{ecg_id}/signal", response_model=EcgSignalResponse)
-def get_ecg_signal(
-    ecg_id: str,
-    current_user: Annotated[UserEntity, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-) -> EcgSignalResponse:
-    record = db.get(EcgRecordEntity, ecg_id)
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="ECG record not found",
-        )
-
-    ensure_ecg_access(record, current_user)
-
-    if record.status != EcgStatus.PROCESSED.value:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"ECG record is not processed yet: {record.status}",
-        )
-
-    return build_ecg_signal_response(record)
 
 @app.get("/auth/me", response_model=AuthUserResponse)
 def me(
     current_user: Annotated[UserEntity, Depends(get_current_user)],
 ) -> AuthUserResponse:
     return user_to_response(current_user)
+
+
+@app.get("/patients/me/invite-code", response_model=PatientInviteResponse)
+def get_my_patient_invite_code(
+    current_user: Annotated[UserEntity, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PatientInviteResponse:
+    require_role(current_user, UserRole.PATIENT)
+    invite = get_or_create_patient_invite(current_user, db)
+    return PatientInviteResponse(invite_code=invite.invite_code)
+
+
+@app.post("/doctor/patients/attach", response_model=PatientResponse)
+def attach_patient_to_doctor(
+    request: AttachPatientRequest,
+    current_user: Annotated[UserEntity, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PatientResponse:
+    require_role(current_user, UserRole.DOCTOR)
+
+    normalized_code = normalize_invite_code(request.invite_code)
+    invite = db.scalar(
+        select(PatientInviteEntity).where(PatientInviteEntity.invite_code == normalized_code)
+    )
+
+    if invite is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient invite code not found",
+        )
+
+    patient = db.get(UserEntity, invite.patient_user_id)
+    if patient is None or patient.role != UserRole.PATIENT.value:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found",
+        )
+
+    link_id = doctor_patient_link_id(current_user.id, patient.id)
+    link = db.get(DoctorPatientLinkEntity, link_id)
+    if link is None:
+        link = DoctorPatientLinkEntity(
+            id=link_id,
+            doctor_user_id=current_user.id,
+            patient_user_id=patient.id,
+            created_at=utc_now(),
+        )
+        db.add(link)
+        db.commit()
+
+    return patient_to_response(patient, db)
+
+
+@app.get("/doctor/patients", response_model=list[PatientResponse])
+def list_doctor_patients(
+    current_user: Annotated[UserEntity, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[PatientResponse]:
+    require_role(current_user, UserRole.DOCTOR)
+
+    links = db.scalars(
+        select(DoctorPatientLinkEntity)
+        .where(DoctorPatientLinkEntity.doctor_user_id == current_user.id)
+        .order_by(DoctorPatientLinkEntity.created_at.desc())
+    ).all()
+
+    patients: list[PatientResponse] = []
+    for link in links:
+        patient = db.get(UserEntity, link.patient_user_id)
+        if patient is not None and patient.role == UserRole.PATIENT.value:
+            patients.append(patient_to_response(patient, db))
+
+    return patients
 
 
 @app.post("/pipeline/process-image")
@@ -853,6 +1076,7 @@ async def upload_ecg(
     current_user: Annotated[UserEntity, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     file: UploadFile = File(...),
+    owner_user_id: str | None = Form(default=None),
 ) -> EcgRecordResponse:
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".png", ".jpg", ".jpeg"}:
@@ -860,6 +1084,12 @@ async def upload_ecg(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PNG/JPG/JPEG ECG images are supported",
         )
+
+    owner_id = resolve_ecg_owner_for_upload(
+        current_user=current_user,
+        owner_user_id=owner_user_id,
+        db=db,
+    )
 
     ecg_id = uuid.uuid4().hex
     now = utc_now()
@@ -880,7 +1110,7 @@ async def upload_ecg(
 
         record = EcgRecordEntity(
             id=ecg_id,
-            owner_user_id=current_user.id,
+            owner_user_id=owner_id,
             uploaded_by_user_id=current_user.id,
             status=EcgStatus.UPLOADED.value,
             storage_dir=str(storage_dir),
@@ -919,9 +1149,22 @@ def list_ecg(
     current_user: Annotated[UserEntity, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[EcgRecordResponse]:
+    if current_user.role == UserRole.PATIENT.value:
+        records = db.scalars(
+            select(EcgRecordEntity)
+            .where(EcgRecordEntity.owner_user_id == current_user.id)
+            .order_by(EcgRecordEntity.created_at.desc())
+        ).all()
+        return [ecg_to_response(record) for record in records]
+
+    linked_patient_ids = get_linked_patient_ids(db, current_user.id)
+    conditions = [EcgRecordEntity.uploaded_by_user_id == current_user.id]
+    if linked_patient_ids:
+        conditions.append(EcgRecordEntity.owner_user_id.in_(linked_patient_ids))
+
     records = db.scalars(
         select(EcgRecordEntity)
-        .where(EcgRecordEntity.owner_user_id == current_user.id)
+        .where(or_(*conditions))
         .order_by(EcgRecordEntity.created_at.desc())
     ).all()
 
@@ -941,9 +1184,10 @@ def get_ecg(
             detail="ECG record not found",
         )
 
-    ensure_ecg_access(record, current_user)
+    ensure_ecg_access(record, current_user, db)
 
     return ecg_to_response(record)
+
 
 @app.delete("/ecg/{ecg_id}")
 def delete_ecg(
@@ -958,7 +1202,7 @@ def delete_ecg(
             detail="ECG record not found",
         )
 
-    ensure_ecg_access(record, current_user)
+    ensure_ecg_access(record, current_user, db)
 
     storage_dir = record.storage_dir
 
@@ -976,6 +1220,31 @@ def delete_ecg(
         "ecg_id": ecg_id,
     }
 
+
+@app.get("/ecg/{ecg_id}/signal", response_model=EcgSignalResponse)
+def get_ecg_signal(
+    ecg_id: str,
+    current_user: Annotated[UserEntity, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> EcgSignalResponse:
+    record = db.get(EcgRecordEntity, ecg_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ECG record not found",
+        )
+
+    ensure_ecg_access(record, current_user, db)
+
+    if record.status != EcgStatus.PROCESSED.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"ECG record is not processed yet: {record.status}",
+        )
+
+    return build_ecg_signal_response(record)
+
+
 @app.get("/ecg/{ecg_id}/analysis")
 def get_ecg_analysis(
     ecg_id: str,
@@ -989,7 +1258,7 @@ def get_ecg_analysis(
             detail="ECG record not found",
         )
 
-    ensure_ecg_access(record, current_user)
+    ensure_ecg_access(record, current_user, db)
 
     return {
         "ecg_id": record.id,
@@ -998,7 +1267,8 @@ def get_ecg_analysis(
         "analysis_report_path": record.analysis_report_path,
         "top_predictions": parse_predictions(record.top_predictions_json),
     }
-    
+
+
 def remove_digitizer_pngs(output_dir: Path) -> None:
     removed = []
     errors = []
@@ -1012,4 +1282,3 @@ def remove_digitizer_pngs(output_dir: Path) -> None:
 
     if errors:
         raise RuntimeError("Failed to remove digitizer PNG files: " + "; ".join(errors))
-        
