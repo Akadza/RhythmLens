@@ -17,8 +17,8 @@ object RhythmSpacing {
 }
 
 object RhythmSize {
-    val Fab = 72.dp
-    val FabIcon = 36.dp
+    val Fab = 60.dp
+    val FabIcon = 30.dp
     val SmallIcon = 24.dp
     val MediumIcon = 28.dp
 
