@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -64,12 +65,8 @@ class HistoryViewModel @Inject constructor(
     private fun loadHistory() {
         viewModelScope.launch {
             _uiState.update { state ->
-                state.copy(isLoading = true, errorMessage = null)
+                state.copy(isLoading = true, errorMessage = null, requiresPatientSelection = false)
             }
-
-            val refreshError = runCatching {
-                refreshEcgListUseCase()
-            }.exceptionOrNull()
 
             combine(
                 observeCurrentUserUseCase(),
@@ -82,28 +79,55 @@ class HistoryViewModel @Inject constructor(
                 user to effectivePatientId
             }
                 .flatMapLatest { (user, patientId) ->
-                    patientId?.let { id ->
-                        combine(
-                            getEcgListUseCase(id),
-                            observePatientByIdUseCase(id)
-                        ) { records, patient ->
-                            records to (patient?.fullName ?: user?.fullName)
-                        }.flatMapLatest { (records, patientName) ->
-                            observeConclusionFlags(records).map { conclusionFlags ->
-                                HistoryData(
-                                    records = records,
-                                    patientName = patientName,
-                                    conclusionFlags = conclusionFlags
-                                )
-                            }
-                        }
-                    } ?: flowOf(
-                        HistoryData(
-                            records = emptyList(),
-                            patientName = null,
-                            conclusionFlags = emptyMap()
+                    if (user?.role == UserRole.DOCTOR && patientId == null) {
+                        flowOf(
+                            HistoryData(
+                                records = emptyList(),
+                                patientName = null,
+                                conclusionFlags = emptyMap(),
+                                requiresPatientSelection = true,
+                                syncWarning = null
+                            )
                         )
-                    )
+                    } else {
+                        patientId?.let { id ->
+                            flow {
+                                emit(
+                                    runCatching {
+                                        refreshEcgListUseCase()
+                                    }.exceptionOrNull()
+                                )
+                            }.flatMapLatest { refreshError ->
+                                combine(
+                                    getEcgListUseCase(id),
+                                    observePatientByIdUseCase(id)
+                                ) { records, patient ->
+                                    records to (patient?.fullName ?: user?.fullName)
+                                }.flatMapLatest { (records, patientName) ->
+                                    observeConclusionFlags(records).map { conclusionFlags ->
+                                        val syncWarning = refreshError?.message
+                                            ?.takeIf { records.isEmpty() }
+                                            ?: refreshError?.let { "Не удалось обновить историю с сервера. Показаны локальные данные." }
+                                        HistoryData(
+                                            records = records,
+                                            patientName = patientName,
+                                            conclusionFlags = conclusionFlags,
+                                            requiresPatientSelection = false,
+                                            syncWarning = syncWarning
+                                        )
+                                    }
+                                }
+                            }
+                        } ?: flowOf(
+                            HistoryData(
+                                records = emptyList(),
+                                patientName = null,
+                                conclusionFlags = emptyMap(),
+                                requiresPatientSelection = false,
+                                syncWarning = null
+                            )
+                        )
+                    }
                 }
                 .catch { throwable ->
                     _uiState.update { state ->
@@ -115,10 +139,6 @@ class HistoryViewModel @Inject constructor(
                 }
                 .collect { data ->
                     _uiState.update {
-                        val syncWarning = refreshError?.message
-                            ?.takeIf { data.records.isEmpty() }
-                            ?: refreshError?.let { "Не удалось обновить историю с сервера. Показаны локальные данные." }
-
                         HistoryUiState(
                             isLoading = false,
                             items = data.records.map { record ->
@@ -127,7 +147,8 @@ class HistoryViewModel @Inject constructor(
                                     hasDoctorConclusion = data.conclusionFlags[record.id] == true
                                 )
                             },
-                            errorMessage = syncWarning
+                            errorMessage = data.syncWarning,
+                            requiresPatientSelection = data.requiresPatientSelection
                         )
                     }
                 }
@@ -217,5 +238,7 @@ class HistoryViewModel @Inject constructor(
 private data class HistoryData(
     val records: List<EcgRecord>,
     val patientName: String?,
-    val conclusionFlags: Map<String, Boolean>
+    val conclusionFlags: Map<String, Boolean>,
+    val requiresPatientSelection: Boolean,
+    val syncWarning: String?
 )
