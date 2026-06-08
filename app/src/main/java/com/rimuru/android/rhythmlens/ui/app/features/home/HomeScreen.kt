@@ -31,15 +31,13 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSize
 import com.rimuru.android.rhythmlens.ui.theme.RhythmSpacing
@@ -52,12 +50,10 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -65,8 +61,7 @@ fun HomeScreen(
                         text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleLarge
                     )
-                },
-                scrollBehavior = scrollBehavior
+                }
             )
         },
         floatingActionButton = {
@@ -74,9 +69,7 @@ fun HomeScreen(
                 onClick = {
                     onEvent(HomeEvent.AddEcgClicked)
                 },
-                modifier = Modifier
-                    .size(RhythmSize.Fab)
-                    .padding(bottom = RhythmSpacing.Small),
+                modifier = Modifier.size(RhythmSize.Fab),
                 shape = CircleShape,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -88,7 +81,7 @@ fun HomeScreen(
                 )
             }
         },
-        floatingActionButtonPosition = FabPosition.Center
+        floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -115,6 +108,8 @@ fun HomeScreen(
                         text = state.errorMessage,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -137,18 +132,6 @@ fun HomeScreen(
             }
 
             item {
-                Text(
-                    text = stringResource(R.string.home_add_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = RhythmSpacing.Medium)
-                )
-            }
-
-            item {
                 Spacer(
                     modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)
                 )
@@ -167,7 +150,6 @@ fun HomeScreen(
             }
         ) {
             AddEcgBottomSheetContent(
-                isCreatingTestEcg = state.isCreatingTestEcg,
                 onScanClick = {
                     onEvent(HomeEvent.ScanClicked)
                 },
@@ -176,9 +158,6 @@ fun HomeScreen(
                 },
                 onImportClick = {
                     onEvent(HomeEvent.ImportClicked)
-                },
-                onCreateTestEcgClick = {
-                    onEvent(HomeEvent.CreateTestEcgClicked)
                 }
             )
         }
@@ -202,7 +181,9 @@ private fun WelcomeCard(
         ) {
             Text(
                 text = stringResource(R.string.home_greeting_template, userName),
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             if (!selectedPatientName.isNullOrBlank()) {
@@ -210,7 +191,9 @@ private fun WelcomeCard(
                     text = stringResource(R.string.selected_patient_template, selectedPatientName),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -250,20 +233,26 @@ private fun LastEcgCard(
         ) {
             Text(
                 text = stringResource(R.string.last_ecg),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             if (record == null) {
                 Text(
                     text = stringResource(R.string.last_ecg_empty),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             } else {
                 Text(
                     text = record.date,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Text(
@@ -277,7 +266,9 @@ private fun LastEcgCard(
                         )
                     },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Text(
@@ -287,7 +278,9 @@ private fun LastEcgCard(
                         record.reconstructedLeads
                     ),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -340,24 +333,26 @@ private fun StatItem(
         Text(
             text = value,
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
 
         Text(
             text = title,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
 @Composable
 private fun AddEcgBottomSheetContent(
-    isCreatingTestEcg: Boolean,
     onScanClick: () -> Unit,
     onGalleryClick: () -> Unit,
-    onImportClick: () -> Unit,
-    onCreateTestEcgClick: () -> Unit
+    onImportClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -383,7 +378,6 @@ private fun AddEcgBottomSheetContent(
 
         Button(
             onClick = onScanClick,
-            enabled = !isCreatingTestEcg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.take_photo))
@@ -391,7 +385,6 @@ private fun AddEcgBottomSheetContent(
 
         FilledTonalButton(
             onClick = onGalleryClick,
-            enabled = !isCreatingTestEcg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.choose_from_gallery))
@@ -399,24 +392,9 @@ private fun AddEcgBottomSheetContent(
 
         FilledTonalButton(
             onClick = onImportClick,
-            enabled = !isCreatingTestEcg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.import_file))
-        }
-
-        FilledTonalButton(
-            onClick = onCreateTestEcgClick,
-            enabled = !isCreatingTestEcg,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = if (isCreatingTestEcg) {
-                    stringResource(R.string.processing)
-                } else {
-                    stringResource(R.string.create_test_ecg)
-                }
-            )
         }
     }
 }
