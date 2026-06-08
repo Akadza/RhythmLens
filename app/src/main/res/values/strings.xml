@@ -47,7 +47,7 @@
     <string name="choose_from_gallery">Выбрать из галереи</string>
     <string name="import_file">Импортировать CSV / WFDB / ZIP</string>
 
-    <string name="scan_description">Создайте тестовую запись или выберите источник изображения ЭКГ. Камера и галерея будут подключены к этому же экрану.</string>
+    <string name="scan_description">Выберите источник изображения ЭКГ.</string>
     <string name="create_test_ecg">Создать тестовую ЭКГ</string>
     <string name="processing">Обработка…</string>
 
@@ -64,6 +64,9 @@
     <string name="status_processed">Анализ выполнен</string>
     <string name="status_processing">В обработке</string>
     <string name="status_error">Ошибка обработки</string>
+    <string name="status_ready_short">Готово</string>
+    <string name="status_wait_short">В работе</string>
+    <string name="status_error_short">Ошибка</string>
 
     <string name="result_probability_template">%1$s · %2$d%%</string>
     <string name="signal_origin_template">%1$d оцифровано · %2$d восстановлено</string>
@@ -108,6 +111,7 @@
     <string name="comparison_legend_compared">Сравниваемая ЭКГ</string>
 
     <string name="synthetic_ecg">Синтетическая ЭКГ</string>
+    <string name="synthetic_ecg_short">Синтетика</string>
     <string name="synthetic_ecg_title">Изображение по итоговому сигналу</string>
     <string name="synthetic_ecg_description">Формируется сервером по завершённой цифровой ЭКГ в исходной разметке, определённой при оцифровке. Цветовое разделение оцифрованных и восстановленных участков остаётся в интерактивном графике.</string>
     <string name="synthetic_ecg_generating">Формирование изображения…</string>
@@ -123,7 +127,7 @@
     <string name="doctor_conclusion_text_label">Текст заключения</string>
     <string name="doctor_conclusion_text_hint">Введите клиническое заключение по ЭКГ</string>
     <string name="doctor_conclusion_updated_template">Обновлено: %1$s</string>
-    <string name="doctor_conclusion_exists">Заключение есть</string>
+    <string name="doctor_conclusion_exists">Заключение</string>
     <string name="doctor_conclusion_missing">Заключения нет</string>
     <string name="share_report">Поделиться отчётом</string>
     <string name="delete_ecg_dialog_title">Удалить запись ЭКГ?</string>
@@ -135,6 +139,8 @@
     <string name="profile_current_role">Текущая роль</string>
     <string name="profile_selected_patient">Выбранный пациент</string>
     <string name="profile_invite_code">Код приглашения</string>
+    <string name="profile_appearance">Оформление</string>
+    <string name="profile_dark_theme">Тёмная тема</string>
     <string name="profile_dev_role_switcher">Режим роли</string>
     <string name="profile_dev_role_switcher_description">Временный переключатель для проверки интерфейса врача и пациента до подключения авторизации.</string>
     <string name="profile_session">Сессия</string>
