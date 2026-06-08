@@ -6,6 +6,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -21,7 +22,7 @@ services:
     restart: unless-stopped
     environment:
       FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-service-account.json
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-rhythmlens}:${POSTGRES_PASSWORD:?      POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-rhythmlens}
+      DATABASE_URL: ${DATABASE_URL}
       DIGITIZER_URL: http://digitizer-service:8001
       COMPLETION_URL: http://completion-service:8002
       ANALYSIS_URL: http://analysis-service:8003
@@ -45,7 +46,8 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-rhythmlens}
       POSTGRES_USER: ${POSTGRES_USER:-rhythmlens}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}    volumes:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
