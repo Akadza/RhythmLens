@@ -72,6 +72,7 @@ fun EcgDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.height(56.dp),
                 title = {
                     Text(
                         text = stringResource(
@@ -88,6 +89,29 @@ fun EcgDetailScreen(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back)
                         )
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { isMenuExpanded = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.more)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isMenuExpanded,
+                            onDismissRequest = { isMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.delete_record)) },
+                                onClick = {
+                                    isMenuExpanded = false
+                                    onEvent(EcgDetailEvent.DeleteClicked)
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -116,28 +140,6 @@ fun EcgDetailScreen(
                     ) {
                         Text(text = stringResource(R.string.synthetic_ecg_short))
                     }
-
-                    Box {
-                        IconButton(onClick = { isMenuExpanded = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.MoreVert,
-                                contentDescription = stringResource(R.string.more)
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = isMenuExpanded,
-                            onDismissRequest = { isMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.delete_record)) },
-                                onClick = {
-                                    isMenuExpanded = false
-                                    onEvent(EcgDetailEvent.DeleteClicked)
-                                }
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -148,6 +150,17 @@ fun EcgDetailScreen(
             verticalArrangement = Arrangement.spacedBy(RhythmSpacing.Large)
         ) {
             item { AiAnalysisCard(probabilities = state.probabilities) }
+
+            item {
+                DoctorConclusionCard(
+                    conclusion = state.doctorConclusion,
+                    currentUserRole = state.currentUserRole,
+                    onEditClick = { onEvent(EcgDetailEvent.DoctorConclusionEditClicked) },
+                    onTextChange = { text -> onEvent(EcgDetailEvent.DoctorConclusionTextChanged(text)) },
+                    onSaveClick = { onEvent(EcgDetailEvent.DoctorConclusionSaveClicked) },
+                    onCancelClick = { onEvent(EcgDetailEvent.DoctorConclusionCancelClicked) }
+                )
+            }
 
             item { SignalInfoCard(signalInfo = state.signalInfo) }
 
@@ -164,17 +177,6 @@ fun EcgDetailScreen(
                 LeadsCard(
                     leads = state.leads,
                     signalMode = state.signalMode
-                )
-            }
-
-            item {
-                DoctorConclusionCard(
-                    conclusion = state.doctorConclusion,
-                    currentUserRole = state.currentUserRole,
-                    onEditClick = { onEvent(EcgDetailEvent.DoctorConclusionEditClicked) },
-                    onTextChange = { text -> onEvent(EcgDetailEvent.DoctorConclusionTextChanged(text)) },
-                    onSaveClick = { onEvent(EcgDetailEvent.DoctorConclusionSaveClicked) },
-                    onCancelClick = { onEvent(EcgDetailEvent.DoctorConclusionCancelClicked) }
                 )
             }
         }
