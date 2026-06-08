@@ -195,15 +195,17 @@ class ComparisonViewModel @Inject constructor(
             val comparedRawSegments = comparedSignal?.leadSegments?.get(lead)
                 ?: comparedRawPoints.toSingleSegment(comparedSignal?.leadOrigins?.get(lead) ?: EcgLeadOrigin.DIGITIZED)
             val shiftMs = estimateShiftMs(basePoints, comparedRawPoints) ?: globalShiftMs ?: 0L
-            val comparedPoints = comparedRawPoints.shiftedAndCropped(
+            val minTimeMs = basePoints.minOfOrNull { point -> point.timeMs } ?: 0L
+            val maxTimeMs = basePoints.maxOfOrNull { point -> point.timeMs } ?: Long.MAX_VALUE
+            val comparedPoints = comparedRawPoints.shiftPointsAndCrop(
                 shiftMs = shiftMs,
-                minTimeMs = basePoints.minOfOrNull { point -> point.timeMs } ?: 0L,
-                maxTimeMs = basePoints.maxOfOrNull { point -> point.timeMs } ?: Long.MAX_VALUE
+                minTimeMs = minTimeMs,
+                maxTimeMs = maxTimeMs
             )
-            val comparedSegments = comparedRawSegments.shiftedAndCropped(
+            val comparedSegments = comparedRawSegments.shiftSegmentsAndCrop(
                 shiftMs = shiftMs,
-                minTimeMs = basePoints.minOfOrNull { point -> point.timeMs } ?: 0L,
-                maxTimeMs = basePoints.maxOfOrNull { point -> point.timeMs } ?: Long.MAX_VALUE
+                minTimeMs = minTimeMs,
+                maxTimeMs = maxTimeMs
             )
 
             ComparisonLeadUi(
@@ -379,7 +381,7 @@ class ComparisonViewModel @Inject constructor(
         return fallbackPeak.timeMs.takeIf { fallbackAmplitude >= threshold }
     }
 
-    private fun List<EcgPoint>.shiftedAndCropped(
+    private fun List<EcgPoint>.shiftPointsAndCrop(
         shiftMs: Long,
         minTimeMs: Long,
         maxTimeMs: Long
@@ -394,13 +396,13 @@ class ComparisonViewModel @Inject constructor(
         }
     }
 
-    private fun List<EcgLeadSegment>.shiftedAndCropped(
+    private fun List<EcgLeadSegment>.shiftSegmentsAndCrop(
         shiftMs: Long,
         minTimeMs: Long,
         maxTimeMs: Long
     ): List<EcgLeadSegment> {
         return mapNotNull { segment ->
-            val points = segment.points.shiftedAndCropped(
+            val points = segment.points.shiftPointsAndCrop(
                 shiftMs = shiftMs,
                 minTimeMs = minTimeMs,
                 maxTimeMs = maxTimeMs
