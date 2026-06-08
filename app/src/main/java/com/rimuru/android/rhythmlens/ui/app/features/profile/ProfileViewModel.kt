@@ -2,6 +2,8 @@ package com.rimuru.android.rhythmlens.ui.app.features.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rimuru.android.rhythmlens.domain.model.UserRole
+import com.rimuru.android.rhythmlens.domain.repository.PatientRepository
 import com.rimuru.android.rhythmlens.domain.usecase.LogoutUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveCurrentUserUseCase
 import com.rimuru.android.rhythmlens.domain.usecase.ObserveSelectedPatientIdUseCase
@@ -17,6 +19,7 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val observeCurrentUserUseCase: ObserveCurrentUserUseCase,
     private val observeSelectedPatientIdUseCase: ObserveSelectedPatientIdUseCase,
+    private val patientRepository: PatientRepository,
     private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
 
@@ -46,10 +49,38 @@ class ProfileViewModel @Inject constructor(
                     email = user?.email.orEmpty(),
                     role = user?.role,
                     selectedPatientId = selectedPatientId,
+                    isInviteCodeLoading = user?.role == UserRole.PATIENT,
                     isLoggingOut = false
                 )
             }.collect { state ->
                 _uiState.value = state
+
+                if (state.role == UserRole.PATIENT) {
+                    loadInviteCode()
+                }
+            }
+        }
+    }
+
+    private fun loadInviteCode() {
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(isInviteCodeLoading = true)
+            }
+
+            runCatching {
+                patientRepository.getMyInviteCode()
+            }.onSuccess { inviteCode ->
+                _uiState.update { state ->
+                    state.copy(
+                        inviteCode = inviteCode,
+                        isInviteCodeLoading = false
+                    )
+                }
+            }.onFailure {
+                _uiState.update { state ->
+                    state.copy(isInviteCodeLoading = false)
+                }
             }
         }
     }
