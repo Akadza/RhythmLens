@@ -1,13 +1,17 @@
 package com.rimuru.android.rhythmlens.data.remote.api
 
+import com.rimuru.android.rhythmlens.data.remote.dto.DoctorConclusionDto
 import com.rimuru.android.rhythmlens.data.remote.dto.EcgRecordDto
 import com.rimuru.android.rhythmlens.data.remote.dto.EcgSignalDto
+import com.rimuru.android.rhythmlens.data.remote.dto.SaveDoctorConclusionRequestDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 
@@ -32,6 +36,17 @@ interface EcgApi {
     suspend fun getEcgSignal(
         @Path("ecg_id") ecgId: String
     ): EcgSignalDto
+
+    @GET("ecg/{ecg_id}/conclusion")
+    suspend fun getDoctorConclusion(
+        @Path("ecg_id") ecgId: String
+    ): DoctorConclusionDto?
+
+    @PUT("ecg/{ecg_id}/conclusion")
+    suspend fun saveDoctorConclusion(
+        @Path("ecg_id") ecgId: String,
+        @Body request: SaveDoctorConclusionRequestDto
+    ): DoctorConclusionDto
 
     @DELETE("ecg/{ecg_id}")
     suspend fun deleteEcg(
