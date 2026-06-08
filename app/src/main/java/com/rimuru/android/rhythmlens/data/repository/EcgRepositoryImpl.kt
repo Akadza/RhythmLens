@@ -263,6 +263,17 @@ class EcgRepositoryImpl @Inject constructor(
             }
     }
 
+    override fun getCachedEcgForPatient(patientId: String): Flow<List<EcgRecord>> {
+        return ecgDao.getAllForPatient(patientId)
+            .mapLatest { list ->
+                withContext(Dispatchers.IO) {
+                    list.map { entity ->
+                        entity.toDomain(signal = buildSignalForRecord(entity))
+                    }
+                }
+            }
+    }
+
     override suspend fun deleteEcg(id: String) {
         withContext(Dispatchers.IO) {
             val remoteDeleteError = runCatching {
