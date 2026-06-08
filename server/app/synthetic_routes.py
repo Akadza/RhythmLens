@@ -33,6 +33,13 @@ def build_file_url(request: Request, ecg_id: str) -> str:
     return str(request.url_for("get_synthetic_image_file", ecg_id=ecg_id))
 
 
+def resolve_patient_name(record: EcgRecordEntity, db: Session) -> str | None:
+    owner = db.get(UserEntity, record.owner_user_id)
+    if owner is None:
+        return None
+    return owner.full_name
+
+
 def validate_synthetic_ready(record: EcgRecordEntity) -> None:
     if record.status != EcgStatus.PROCESSED.value:
         raise HTTPException(
@@ -70,6 +77,7 @@ def generate_or_get_synthetic(record: EcgRecordEntity, db: Session, force: bool 
             "digitized_csv_path": record.digitized_csv_path,
             "metadata_path": record.digitization_metadata_path,
             "output_dir": output_dir,
+            "patient_name": resolve_patient_name(record, db),
         },
         timeout=300,
     )
