@@ -7,6 +7,7 @@ data class ProfileUiState(
     val email: String = "",
     val role: UserRole? = null,
     val selectedPatientId: String? = null,
+    val selectedPatientName: String? = null,
     val inviteCode: String? = null,
     val isInviteCodeLoading: Boolean = false,
     val isLoggingOut: Boolean = false
