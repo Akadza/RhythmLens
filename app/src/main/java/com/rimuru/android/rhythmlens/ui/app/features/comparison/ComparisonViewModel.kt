@@ -182,18 +182,36 @@ class ComparisonViewModel @Inject constructor(
     private fun buildComparisonLeads(base: EcgRecord, compared: EcgRecord): List<ComparisonLeadUi> {
         val baseSignal = base.digitizedSignal
         val comparedSignal = compared.digitizedSignal
+        val globalShiftMs = estimateShiftMs(
+            baseSignal?.leads?.get(EcgLead.II).orEmpty(),
+            comparedSignal?.leads?.get(EcgLead.II).orEmpty()
+        )
 
         return EcgLead.entries.map { lead ->
             val basePoints = baseSignal?.leads?.get(lead).orEmpty()
-            val comparedPoints = comparedSignal?.leads?.get(lead).orEmpty()
+            val comparedRawPoints = comparedSignal?.leads?.get(lead).orEmpty()
+            val baseSegments = baseSignal?.leadSegments?.get(lead)
+                ?: basePoints.toSingleSegment(baseSignal?.leadOrigins?.get(lead) ?: EcgLeadOrigin.DIGITIZED)
+            val comparedRawSegments = comparedSignal?.leadSegments?.get(lead)
+                ?: comparedRawPoints.toSingleSegment(comparedSignal?.leadOrigins?.get(lead) ?: EcgLeadOrigin.DIGITIZED)
+            val shiftMs = estimateShiftMs(basePoints, comparedRawPoints) ?: globalShiftMs ?: 0L
+            val comparedPoints = comparedRawPoints.shiftedAndCropped(
+                shiftMs = shiftMs,
+                minTimeMs = basePoints.minOfOrNull { point -> point.timeMs } ?: 0L,
+                maxTimeMs = basePoints.maxOfOrNull { point -> point.timeMs } ?: Long.MAX_VALUE
+            )
+            val comparedSegments = comparedRawSegments.shiftedAndCropped(
+                shiftMs = shiftMs,
+                minTimeMs = basePoints.minOfOrNull { point -> point.timeMs } ?: 0L,
+                maxTimeMs = basePoints.maxOfOrNull { point -> point.timeMs } ?: Long.MAX_VALUE
+            )
+
             ComparisonLeadUi(
                 name = lead.name,
                 basePoints = basePoints,
                 comparedPoints = comparedPoints,
-                baseSegments = baseSignal?.leadSegments?.get(lead)
-                    ?: basePoints.toSingleSegment(baseSignal?.leadOrigins?.get(lead) ?: EcgLeadOrigin.DIGITIZED),
-                comparedSegments = comparedSignal?.leadSegments?.get(lead)
-                    ?: comparedPoints.toSingleSegment(comparedSignal?.leadOrigins?.get(lead) ?: EcgLeadOrigin.DIGITIZED)
+                baseSegments = baseSegments,
+                comparedSegments = comparedSegments
             )
         }
     }
@@ -236,16 +254,15 @@ class ComparisonViewModel @Inject constructor(
         } else {
             "Основной класс анализа изменился: $basePrediction → $comparedPrediction."
         }
-        val peakSummary = buildPeakSummary(leads)
 
         val points = buildList {
+            add("Перед наложением сравниваемая ЭКГ автоматически выровнена по первому выраженному комплексу.")
             averageDifference?.let { value ->
                 add("Среднее абсолютное расхождение по общим отведениям: ${value.formatMv()} мВ.")
             }
             maxDifferenceLead?.let { (leadName, metric) ->
                 add("Наибольшее расхождение отмечено в отведении $leadName: ${metric.meanAbsDiffMv.formatMv()} мВ, коэффициент сходства ${metric.correlation.formatCorrelation()}.")
             }
-            peakSummary?.let { add(it) }
             add(predictionText)
             add("Автоматическое сравнение является ориентировочным и не заменяет врачебную оценку формы комплексов, интервалов и сегмента ST.")
         }
@@ -260,12 +277,14 @@ class ComparisonViewModel @Inject constructor(
         first: List<EcgPoint>,
         second: List<EcgPoint>
     ): LeadDifferenceMetric? {
-        val count = min(first.size, second.size)
-        if (count < MIN_POINTS_FOR_COMPARISON) {
+        if (first.size < MIN_POINTS_FOR_COMPARISON || second.size < MIN_POINTS_FOR_COMPARISON) {
             return null
         }
 
-        val stride = max(1, count / MAX_COMPARISON_POINTS)
+        val firstSorted = first.sortedBy { point -> point.timeMs }
+        val secondSorted = second.sortedBy { point -> point.timeMs }
+        val stride = max(1, firstSorted.size / MAX_COMPARISON_POINTS)
+        var secondIndex = 0
         var samples = 0
         var absSum = 0.0
         var firstSum = 0.0
@@ -274,21 +293,32 @@ class ComparisonViewModel @Inject constructor(
         var secondSquaredSum = 0.0
         var productSum = 0.0
 
-        var index = 0
-        while (index < count) {
-            val firstValue = first[index].voltageMv
-            val secondValue = second[index].voltageMv
-            absSum += abs(firstValue - secondValue)
-            firstSum += firstValue
-            secondSum += secondValue
-            firstSquaredSum += firstValue * firstValue
-            secondSquaredSum += secondValue * secondValue
-            productSum += firstValue * secondValue
-            samples++
-            index += stride
+        var firstIndex = 0
+        while (firstIndex < firstSorted.size) {
+            val firstPoint = firstSorted[firstIndex]
+            while (
+                secondIndex + 1 < secondSorted.size &&
+                abs(secondSorted[secondIndex + 1].timeMs - firstPoint.timeMs) <= abs(secondSorted[secondIndex].timeMs - firstPoint.timeMs)
+            ) {
+                secondIndex++
+            }
+
+            val secondPoint = secondSorted[secondIndex]
+            if (abs(secondPoint.timeMs - firstPoint.timeMs) <= MAX_PAIR_TIME_DIFF_MS) {
+                val firstValue = firstPoint.voltageMv
+                val secondValue = secondPoint.voltageMv
+                absSum += abs(firstValue - secondValue)
+                firstSum += firstValue
+                secondSum += secondValue
+                firstSquaredSum += firstValue * firstValue
+                secondSquaredSum += secondValue * secondValue
+                productSum += firstValue * secondValue
+                samples++
+            }
+            firstIndex += stride
         }
 
-        if (samples == 0) {
+        if (samples < MIN_POINTS_FOR_COMPARISON) {
             return null
         }
 
@@ -304,45 +334,83 @@ class ComparisonViewModel @Inject constructor(
         )
     }
 
-    private fun buildPeakSummary(leads: List<ComparisonLeadUi>): String? {
-        val lead = leads.firstOrNull { item -> item.name == EcgLead.II.name } ?: return null
-        val basePeaks = estimatePeaks(lead.basePoints) ?: return null
-        val comparedPeaks = estimatePeaks(lead.comparedPoints) ?: return null
-        val rrDiffMs = abs(basePeaks.meanRrMs - comparedPeaks.meanRrMs)
-        return "По ориентировочным R-пикам в II отведении: ${basePeaks.count} и ${comparedPeaks.count} пиков; средний RR отличается примерно на ${rrDiffMs.toInt()} мс."
+    private fun estimateShiftMs(basePoints: List<EcgPoint>, comparedPoints: List<EcgPoint>): Long? {
+        val basePeakTime = estimateFirstQrsPeakTimeMs(basePoints) ?: return null
+        val comparedPeakTime = estimateFirstQrsPeakTimeMs(comparedPoints) ?: return null
+        val shift = basePeakTime - comparedPeakTime
+        return shift.coerceIn(-MAX_ALIGNMENT_SHIFT_MS, MAX_ALIGNMENT_SHIFT_MS)
     }
 
-    private fun estimatePeaks(points: List<EcgPoint>): PeakEstimate? {
+    private fun estimateFirstQrsPeakTimeMs(points: List<EcgPoint>): Long? {
         if (points.size < MIN_POINTS_FOR_COMPARISON) {
             return null
         }
 
-        val values = points.map { point -> point.voltageMv }
+        val sortedPoints = points.sortedBy { point -> point.timeMs }
+        val values = sortedPoints.map { point -> point.voltageMv }
         val baseline = median(values)
-        val centered = values.map { value -> value - baseline }
-        val threshold = max(0.25, percentile(centered.map { value -> abs(value) }, 0.95) * 0.6)
-        val peaks = mutableListOf<Long>()
+        val centeredAbs = values.map { value -> abs(value - baseline) }
+        val threshold = max(MIN_QRS_THRESHOLD_MV, percentile(centeredAbs, 0.95) * QRS_THRESHOLD_FRACTION)
         var lastPeakTime = Long.MIN_VALUE / 2
 
-        for (index in 1 until centered.lastIndex) {
-            val value = centered[index]
-            val time = points[index].timeMs
-            val isLocalPeak = value > threshold && value >= centered[index - 1] && value >= centered[index + 1]
-            if (isLocalPeak && time - lastPeakTime >= MIN_RR_DISTANCE_MS) {
-                peaks.add(time)
-                lastPeakTime = time
+        sortedPoints.forEachIndexed { index, point ->
+            if (point.timeMs > FIRST_QRS_SEARCH_WINDOW_MS) {
+                return null
+            }
+            if (index == 0 || index == sortedPoints.lastIndex) {
+                return@forEachIndexed
+            }
+
+            val value = centeredAbs[index]
+            val isLocalPeak = value >= threshold && value >= centeredAbs[index - 1] && value >= centeredAbs[index + 1]
+            if (isLocalPeak && point.timeMs - lastPeakTime >= MIN_QRS_DISTANCE_MS) {
+                return point.timeMs
+            }
+            if (isLocalPeak) {
+                lastPeakTime = point.timeMs
             }
         }
 
-        if (peaks.size < 2) {
-            return null
-        }
+        val fallbackPeak = sortedPoints
+            .filter { point -> point.timeMs <= FIRST_QRS_SEARCH_WINDOW_MS }
+            .maxByOrNull { point -> abs(point.voltageMv - baseline) }
+            ?: return null
+        val fallbackAmplitude = abs(fallbackPeak.voltageMv - baseline)
+        return fallbackPeak.timeMs.takeIf { fallbackAmplitude >= threshold }
+    }
 
-        val rrIntervals = peaks.zipWithNext { first, second -> (second - first).toDouble() }
-        return PeakEstimate(
-            count = peaks.size,
-            meanRrMs = rrIntervals.average()
-        )
+    private fun List<EcgPoint>.shiftedAndCropped(
+        shiftMs: Long,
+        minTimeMs: Long,
+        maxTimeMs: Long
+    ): List<EcgPoint> {
+        return mapNotNull { point ->
+            val shiftedTime = point.timeMs + shiftMs
+            if (shiftedTime < minTimeMs || shiftedTime > maxTimeMs) {
+                null
+            } else {
+                point.copy(timeMs = shiftedTime)
+            }
+        }
+    }
+
+    private fun List<EcgLeadSegment>.shiftedAndCropped(
+        shiftMs: Long,
+        minTimeMs: Long,
+        maxTimeMs: Long
+    ): List<EcgLeadSegment> {
+        return mapNotNull { segment ->
+            val points = segment.points.shiftedAndCropped(
+                shiftMs = shiftMs,
+                minTimeMs = minTimeMs,
+                maxTimeMs = maxTimeMs
+            )
+            if (points.isEmpty()) {
+                null
+            } else {
+                segment.copy(points = points)
+            }
+        }
     }
 
     private fun EcgPrediction?.toReadablePrediction(): String {
@@ -393,15 +461,15 @@ class ComparisonViewModel @Inject constructor(
         val correlation: Double
     )
 
-    private data class PeakEstimate(
-        val count: Int,
-        val meanRrMs: Double
-    )
-
     private companion object {
         const val MIN_POINTS_FOR_COMPARISON = 20
         const val MAX_COMPARISON_POINTS = 1000
-        const val MIN_RR_DISTANCE_MS = 250L
+        const val MAX_PAIR_TIME_DIFF_MS = 16L
+        const val MAX_ALIGNMENT_SHIFT_MS = 700L
+        const val FIRST_QRS_SEARCH_WINDOW_MS = 3500L
+        const val MIN_QRS_DISTANCE_MS = 250L
+        const val MIN_QRS_THRESHOLD_MV = 0.08
+        const val QRS_THRESHOLD_FRACTION = 0.55
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
