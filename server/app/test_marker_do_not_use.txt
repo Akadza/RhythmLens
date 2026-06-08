@@ -1,1 +1,1 @@
-test
+from fastapi import Depends
