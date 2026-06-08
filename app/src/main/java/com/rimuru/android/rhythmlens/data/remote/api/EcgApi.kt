@@ -56,6 +56,11 @@ interface EcgApi {
         @Path("ecg_id") ecgId: String
     ): SyntheticImageDto
 
+    @POST("ecg/{ecg_id}/synthetic-image?force=true")
+    suspend fun regenerateSyntheticImage(
+        @Path("ecg_id") ecgId: String
+    ): SyntheticImageDto
+
     @Streaming
     @GET("ecg/{ecg_id}/synthetic-image/file")
     suspend fun downloadSyntheticImageFile(
