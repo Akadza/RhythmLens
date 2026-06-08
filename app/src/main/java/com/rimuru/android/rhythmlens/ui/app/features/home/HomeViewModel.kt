@@ -1,6 +1,5 @@
 package com.rimuru.android.rhythmlens.ui.app.features.home
 
-import kotlin.math.roundToInt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rimuru.android.rhythmlens.domain.model.DigitizedEcg
@@ -36,6 +35,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.PI
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @HiltViewModel
@@ -63,8 +63,15 @@ class HomeViewModel @Inject constructor(
     fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.AddEcgClicked -> {
-                _uiState.update { state ->
-                    state.copy(isAddEcgSheetVisible = true)
+                if (canCreateEcgForCurrentSelection()) {
+                    _uiState.update { state ->
+                        state.copy(
+                            isAddEcgSheetVisible = true,
+                            errorMessage = null
+                        )
+                    }
+                } else {
+                    showSelectPatientMessage()
                 }
             }
 
@@ -75,18 +82,33 @@ class HomeViewModel @Inject constructor(
             }
 
             HomeEvent.ScanClicked -> {
-                closeSheet()
-                _effect.trySend(HomeEffect.OpenCamera)
+                if (canCreateEcgForCurrentSelection()) {
+                    closeSheet()
+                    _effect.trySend(HomeEffect.OpenCamera)
+                } else {
+                    closeSheet()
+                    showSelectPatientMessage()
+                }
             }
 
             HomeEvent.GalleryClicked -> {
-                closeSheet()
-                _effect.trySend(HomeEffect.OpenGalleryPicker)
+                if (canCreateEcgForCurrentSelection()) {
+                    closeSheet()
+                    _effect.trySend(HomeEffect.OpenGalleryPicker)
+                } else {
+                    closeSheet()
+                    showSelectPatientMessage()
+                }
             }
 
             HomeEvent.ImportClicked -> {
-                closeSheet()
-                _effect.trySend(HomeEffect.OpenFilePicker)
+                if (canCreateEcgForCurrentSelection()) {
+                    closeSheet()
+                    _effect.trySend(HomeEffect.OpenFilePicker)
+                } else {
+                    closeSheet()
+                    showSelectPatientMessage()
+                }
             }
 
             HomeEvent.CreateTestEcgClicked -> {
@@ -136,8 +158,13 @@ class HomeViewModel @Inject constructor(
                         _uiState.update { state ->
                             state.copy(
                                 userName = user?.fullName.orEmpty(),
+                                userRole = user?.role,
                                 selectedPatientId = effectivePatientId,
-                                selectedPatientName = selectedPatientName ?: user?.fullName,
+                                selectedPatientName = when (user?.role) {
+                                    UserRole.PATIENT -> user.fullName
+                                    UserRole.DOCTOR -> selectedPatientName
+                                    null -> null
+                                },
                                 totalRecords = 0,
                                 lastRecord = null
                             )
@@ -172,9 +199,18 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun processSelectedImage(imageUri: String) {
+        val patientId = _uiState.value.selectedPatientId
+        if (patientId == null) {
+            showSelectPatientMessage()
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { state ->
-                state.copy(isCreatingTestEcg = true)
+                state.copy(
+                    isCreatingTestEcg = true,
+                    errorMessage = null
+                )
             }
 
             runCatching {
@@ -189,7 +225,6 @@ class HomeViewModel @Inject constructor(
                     state.copy(isCreatingTestEcg = false)
                 }
 
-                val patientId = _uiState.value.selectedPatientId ?: "current-user"
                 saveEcgUseCase(
                     EcgRecord(
                         id = UUID.randomUUID().toString(),
@@ -208,11 +243,18 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun createTestEcg() {
-        val patientId = _uiState.value.selectedPatientId ?: return
+        val patientId = _uiState.value.selectedPatientId
+        if (patientId == null) {
+            showSelectPatientMessage()
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { state ->
-                state.copy(isCreatingTestEcg = true)
+                state.copy(
+                    isCreatingTestEcg = true,
+                    errorMessage = null
+                )
             }
 
             runCatching {
@@ -254,6 +296,24 @@ class HomeViewModel @Inject constructor(
                 )
                 saveEcgUseCase(failedRecord)
             }
+        }
+    }
+
+    private fun canCreateEcgForCurrentSelection(): Boolean {
+        val state = _uiState.value
+        return when (state.userRole) {
+            UserRole.PATIENT -> state.selectedPatientId != null
+            UserRole.DOCTOR -> state.selectedPatientId != null
+            null -> false
+        }
+    }
+
+    private fun showSelectPatientMessage() {
+        _uiState.update { state ->
+            state.copy(
+                isAddEcgSheetVisible = false,
+                errorMessage = SELECT_PATIENT_BEFORE_UPLOAD_MESSAGE
+            )
         }
     }
 
@@ -365,6 +425,7 @@ class HomeViewModel @Inject constructor(
         const val DURATION_SECONDS = 10.0
         const val HEART_RATE_HZ = 1.2
         const val PROCESSING_STEP_DELAY_MS = 700L
+        const val SELECT_PATIENT_BEFORE_UPLOAD_MESSAGE = "Выберите пациента перед загрузкой ЭКГ"
         val RECONSTRUCTED_TEST_LEADS = setOf(EcgLead.V3, EcgLead.V4, EcgLead.V5, EcgLead.V6)
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
@@ -373,10 +434,12 @@ class HomeViewModel @Inject constructor(
 private fun initialState(): HomeUiState {
     return HomeUiState(
         userName = "",
+        userRole = null,
         selectedPatientId = null,
         selectedPatientName = null,
         totalRecords = 0,
         lastRecord = null,
-        linkedDoctorCount = 0
+        linkedDoctorCount = 0,
+        errorMessage = null
     )
 }
