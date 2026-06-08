@@ -100,6 +100,13 @@
     <string name="lead_origin_reconstructed">восстановлено</string>
     <string name="lead_origin_mixed">частично</string>
 
+    <string name="comparison_summary_title">Краткое сравнение</string>
+    <string name="comparison_records_title">Записи для сравнения</string>
+    <string name="comparison_base_record_template">Базовая ЭКГ: %1$s</string>
+    <string name="comparison_no_candidates">Нет другой обработанной ЭКГ этого пациента.</string>
+    <string name="comparison_legend_base">Базовая ЭКГ</string>
+    <string name="comparison_legend_compared">Сравниваемая ЭКГ</string>
+
     <string name="synthetic_ecg">Синтетическая ЭКГ</string>
     <string name="synthetic_ecg_title">Изображение по итоговому сигналу</string>
     <string name="synthetic_ecg_description">Формируется сервером по завершённой цифровой ЭКГ в исходной разметке, определённой при оцифровке. Цветовое разделение оцифрованных и восстановленных участков остаётся в интерактивном графике.</string>
