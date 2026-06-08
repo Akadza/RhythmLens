@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.app.features.auth.AuthRoute
+import com.rimuru.android.rhythmlens.ui.app.features.comparison.ComparisonRoute
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.EcgDetailRoute
 import com.rimuru.android.rhythmlens.ui.app.features.syntheticimage.SyntheticImageRoute
 import com.rimuru.android.rhythmlens.ui.screens.MainScreen
@@ -71,21 +72,19 @@ fun AppNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToComparison = { ecgId ->
-                    navController.navigate(
-                        ComparisonDestination(baseEcgId = ecgId)
-                    )
+                    navController.navigate(ComparisonDestination(baseEcgId = ecgId))
                 },
                 onNavigateToSyntheticImage = { ecgId ->
-                    navController.navigate(
-                        SyntheticImageDestination(ecgId = ecgId)
-                    )
+                    navController.navigate(SyntheticImageDestination(ecgId = ecgId))
                 }
             )
         }
 
         composable<ComparisonDestination> {
-            RoutePlaceholderScreen(
-                title = stringResource(R.string.screen_comparison)
+            ComparisonRoute(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -106,9 +105,7 @@ fun AppNavHost(
 }
 
 @Composable
-private fun RoutePlaceholderScreen(
-    title: String
-) {
+private fun RoutePlaceholderScreen(title: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
