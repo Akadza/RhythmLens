@@ -7,6 +7,7 @@ import com.rimuru.android.rhythmlens.data.remote.dto.SaveDoctorConclusionRequest
 import com.rimuru.android.rhythmlens.data.remote.dto.SyntheticImageDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -15,6 +16,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Streaming
 
 interface EcgApi {
 
@@ -53,6 +55,12 @@ interface EcgApi {
     suspend fun generateSyntheticImage(
         @Path("ecg_id") ecgId: String
     ): SyntheticImageDto
+
+    @Streaming
+    @GET("ecg/{ecg_id}/synthetic-image/file")
+    suspend fun downloadSyntheticImageFile(
+        @Path("ecg_id") ecgId: String
+    ): ResponseBody
 
     @DELETE("ecg/{ecg_id}")
     suspend fun deleteEcg(
