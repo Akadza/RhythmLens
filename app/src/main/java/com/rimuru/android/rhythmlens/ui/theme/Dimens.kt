@@ -25,7 +25,7 @@ object RhythmSize {
     val AnalysisIndicator = 168.dp
     val AnalysisStroke = 16.dp
     val ProbabilityBarWidth = 96.dp
-    val LeadPreviewHeight = 72.dp
+    val LeadPreviewHeight = 132.dp
 }
 
 object RhythmCorner {
