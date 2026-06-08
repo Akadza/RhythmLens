@@ -43,7 +43,7 @@ fun ProfileScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.height(56.dp),
+                modifier = Modifier.height(64.dp),
                 title = {
                     Text(text = stringResource(R.string.profile))
                 }
@@ -121,7 +121,9 @@ private fun ProfileInfoCard(
                 UserRole.DOCTOR -> {
                     ProfileInfoRow(
                         title = stringResource(R.string.profile_selected_patient),
-                        value = state.selectedPatientId ?: stringResource(R.string.not_specified)
+                        value = state.selectedPatientName
+                            ?: state.selectedPatientId
+                            ?: stringResource(R.string.not_specified)
                     )
                 }
 
