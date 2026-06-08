@@ -50,7 +50,7 @@ fun ComparisonScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.height(64.dp),
+                modifier = Modifier.height(88.dp),
                 title = {
                     Text(text = stringResource(R.string.screen_comparison))
                 },
@@ -157,7 +157,7 @@ private fun SummaryCard(summary: ComparisonSummaryUi) {
             )
             summary.points.forEach { point ->
                 Text(
-                    text = "• $point",
+                    text = "- $point",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
