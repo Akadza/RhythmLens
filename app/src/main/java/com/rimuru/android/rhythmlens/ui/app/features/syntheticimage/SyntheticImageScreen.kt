@@ -6,8 +6,10 @@ import android.widget.ImageView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +81,12 @@ fun SyntheticImageScreen(
                 state = state,
                 onRetryClick = {
                     onEvent(SyntheticImageEvent.RetryClicked)
+                },
+                onSaveClick = {
+                    onEvent(SyntheticImageEvent.SaveClicked)
+                },
+                onShareClick = {
+                    onEvent(SyntheticImageEvent.ShareClicked)
                 }
             )
         }
@@ -113,7 +122,9 @@ private fun SyntheticDescriptionCard() {
 @Composable
 private fun SyntheticPreviewCard(
     state: SyntheticImageUiState,
-    onRetryClick: () -> Unit
+    onRetryClick: () -> Unit,
+    onSaveClick: () -> Unit,
+    onShareClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -124,7 +135,7 @@ private fun SyntheticPreviewCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 260.dp)
+                .heightIn(min = 240.dp)
                 .padding(RhythmSpacing.Medium),
             contentAlignment = Alignment.Center
         ) {
@@ -167,7 +178,7 @@ private fun SyntheticPreviewCard(
                         AndroidView(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 320.dp, max = 760.dp),
+                                .height(260.dp),
                             factory = { context ->
                                 ImageView(context).apply {
                                     layoutParams = ViewGroup.LayoutParams(
@@ -176,13 +187,32 @@ private fun SyntheticPreviewCard(
                                     )
                                     adjustViewBounds = true
                                     scaleType = ImageView.ScaleType.FIT_CENTER
-                                    setBackgroundColor(android.graphics.Color.WHITE)
+                                    setBackgroundColor(android.graphics.Color.rgb(255, 252, 250))
                                 }
                             },
                             update = { imageView ->
                                 imageView.setImageURI(Uri.parse(state.imageUri))
                             }
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(RhythmSpacing.Small)
+                        ) {
+                            Button(
+                                onClick = onShareClick,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(text = stringResource(R.string.synthetic_ecg_share))
+                            }
+
+                            FilledTonalButton(
+                                onClick = onSaveClick,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(text = stringResource(R.string.synthetic_ecg_save))
+                            }
+                        }
 
                         OutlinedButton(
                             onClick = onRetryClick,
