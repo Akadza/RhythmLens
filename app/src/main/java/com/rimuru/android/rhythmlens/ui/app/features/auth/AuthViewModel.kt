@@ -26,8 +26,18 @@ class AuthViewModel @Inject constructor(
             AuthEvent.RegisterClicked -> submitRegister()
             AuthEvent.SwitchToLoginClicked -> _uiState.update { it.copy(mode = AuthMode.Login, errorMessage = null) }
             AuthEvent.SwitchToRegisterClicked -> _uiState.update { it.copy(mode = AuthMode.Register, errorMessage = null) }
-            is AuthEvent.FullNameChanged -> _uiState.update { it.copy(fullName = event.value, errorMessage = null) }
-            is AuthEvent.EmailChanged -> _uiState.update { it.copy(email = event.value, errorMessage = null) }
+            is AuthEvent.FullNameChanged -> _uiState.update {
+                it.copy(
+                    fullName = event.value.take(MAX_FULL_NAME_LENGTH),
+                    errorMessage = null
+                )
+            }
+            is AuthEvent.EmailChanged -> _uiState.update {
+                it.copy(
+                    email = event.value.trim().take(MAX_EMAIL_LENGTH),
+                    errorMessage = null
+                )
+            }
             is AuthEvent.PasswordChanged -> _uiState.update { it.copy(password = event.value, errorMessage = null) }
             is AuthEvent.RoleSelected -> _uiState.update { it.copy(selectedRole = event.role, errorMessage = null) }
         }
@@ -48,10 +58,20 @@ class AuthViewModel @Inject constructor(
         val state = _uiState.value
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            registerUseCase(state.fullName, state.email, state.password, state.selectedRole).onFailure { throwable ->
+            registerUseCase(
+                state.fullName.trim(),
+                state.email.trim(),
+                state.password,
+                state.selectedRole
+            ).onFailure { throwable ->
                 _uiState.update { it.copy(errorMessage = throwable.message ?: "Не удалось зарегистрироваться") }
             }
             _uiState.update { it.copy(isLoading = false) }
         }
+    }
+
+    private companion object {
+        const val MAX_FULL_NAME_LENGTH = 120
+        const val MAX_EMAIL_LENGTH = 254
     }
 }
