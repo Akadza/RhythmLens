@@ -18,6 +18,7 @@
     <string name="save">Сохранить</string>
     <string name="not_specified">Не указано</string>
     <string name="logout">Выйти</string>
+    <string name="close">Закрыть</string>
 
     <string name="auth_login_title">Вход</string>
     <string name="auth_register_title">Регистрация</string>
@@ -39,13 +40,14 @@
     <string name="home_add_hint">Нажмите +, чтобы сфотографировать ЭКГ, выбрать изображение из галереи или импортировать цифровой файл.</string>
     <string name="last_ecg">Последняя ЭКГ</string>
     <string name="last_ecg_empty">ЭКГ ещё не загружались.</string>
+    <string name="ecg_processing_placeholder">Новая запись появится после завершения обработки.</string>
     <string name="records_count">Записей</string>
     <string name="doctors_count">Врачей</string>
     <string name="selected_patient_template">Пациент: %1$s</string>
     <string name="add_ecg_description">Выберите источник данных. PDF используется только для экспорта отчёта, не для импорта.</string>
     <string name="take_photo">Сделать фото</string>
     <string name="choose_from_gallery">Выбрать из галереи</string>
-    <string name="import_file">Импортировать CSV / WFDB / ZIP</string>
+    <string name="import_file">Импортировать CSV / WFDB</string>
 
     <string name="scan_description">Выберите источник изображения ЭКГ.</string>
     <string name="create_test_ecg">Создать тестовую ЭКГ</string>
@@ -54,6 +56,8 @@
     <string name="history_error_title">Не удалось загрузить историю</string>
     <string name="history_empty_title">История пуста</string>
     <string name="history_empty_body">Добавьте первую ЭКГ с главного экрана.</string>
+    <string name="history_select_patient_title">Пациент не выбран</string>
+    <string name="history_select_patient_body">Выберите пациента на вкладке «Пациенты», чтобы посмотреть его ЭКГ.</string>
     <string name="two_line_message_template">%1$s\n%2$s</string>
 
     <string name="status_draft">Черновик</string>
@@ -75,6 +79,8 @@
     <string name="ecg_detail_title_template">ЭКГ · %1$s</string>
     <string name="ai_analysis_result">Результат ИИ-анализа</string>
     <string name="ai_result_requires_review">Результат требует проверки специалистом.</string>
+    <string name="ai_result_explanation">Расшифровка результатов</string>
+    <string name="ai_result_explanation_intro">Ниже приведены краткие пояснения к наиболее вероятным классам. Они не являются диагнозом.</string>
     <string name="top_probable_classes">Наиболее вероятные классы</string>
 
     <string name="signal_data">Данные сигнала</string>
