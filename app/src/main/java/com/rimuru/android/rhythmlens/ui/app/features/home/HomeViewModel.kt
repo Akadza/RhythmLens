@@ -63,6 +63,9 @@ class HomeViewModel @Inject constructor(
     fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.AddEcgClicked -> {
+                if (_uiState.value.isCreatingTestEcg) {
+                    return
+                }
                 if (canCreateEcgForCurrentSelection()) {
                     _uiState.update { state ->
                         state.copy(
@@ -82,6 +85,9 @@ class HomeViewModel @Inject constructor(
             }
 
             HomeEvent.ScanClicked -> {
+                if (_uiState.value.isCreatingTestEcg) {
+                    return
+                }
                 if (canCreateEcgForCurrentSelection()) {
                     closeSheet()
                     _effect.trySend(HomeEffect.OpenCamera)
@@ -92,6 +98,9 @@ class HomeViewModel @Inject constructor(
             }
 
             HomeEvent.GalleryClicked -> {
+                if (_uiState.value.isCreatingTestEcg) {
+                    return
+                }
                 if (canCreateEcgForCurrentSelection()) {
                     closeSheet()
                     _effect.trySend(HomeEffect.OpenGalleryPicker)
@@ -102,6 +111,9 @@ class HomeViewModel @Inject constructor(
             }
 
             HomeEvent.ImportClicked -> {
+                if (_uiState.value.isCreatingTestEcg) {
+                    return
+                }
                 if (canCreateEcgForCurrentSelection()) {
                     closeSheet()
                     _effect.trySend(HomeEffect.OpenFilePicker)
@@ -117,6 +129,9 @@ class HomeViewModel @Inject constructor(
             }
 
             is HomeEvent.ImageSelected -> {
+                if (_uiState.value.isCreatingTestEcg) {
+                    return
+                }
                 closeSheet()
                 processSelectedImage(event.imageUri)
             }
