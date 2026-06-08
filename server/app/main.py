@@ -115,6 +115,15 @@ class EcgPredictionEntity(Base):
     probability: Mapped[str] = mapped_column(String)
     detected: Mapped[str] = mapped_column(String)
     rank: Mapped[str] = mapped_column(String)
+    
+class DoctorConclusionEntity(Base):
+    __tablename__ = "doctor_conclusions"
+
+    ecg_id: Mapped[str] = mapped_column(String, primary_key=True)
+    doctor_user_id: Mapped[str] = mapped_column(String, index=True)
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class AuthSyncRequest(BaseModel):
@@ -199,6 +208,16 @@ class EcgSignalResponse(BaseModel):
     duration_seconds: float
     leads: list[EcgSignalLeadResponse]
 
+class DoctorConclusionRequest(BaseModel):
+    text: str = Field(default="")
+
+
+class DoctorConclusionResponse(BaseModel):
+    ecg_id: str
+    doctor_id: str
+    text: str
+    created_at: str
+    updated_at: str
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -503,6 +522,14 @@ def ecg_to_response(record: EcgRecordEntity) -> EcgRecordResponse:
         updated_at=record.updated_at.isoformat(),
     )
 
+def conclusion_to_response(conclusion: DoctorConclusionEntity) -> DoctorConclusionResponse:
+    return DoctorConclusionResponse(
+        ecg_id=conclusion.ecg_id,
+        doctor_id=conclusion.doctor_user_id,
+        text=conclusion.text,
+        created_at=conclusion.created_at.isoformat(),
+        updated_at=conclusion.updated_at.isoformat(),
+    )
 
 def post_json(url: str, payload: dict, timeout: int = 1800) -> dict:
     request = urllib.request.Request(
@@ -1244,6 +1271,68 @@ def get_ecg_signal(
 
     return build_ecg_signal_response(record)
 
+@app.get("/ecg/{ecg_id}/conclusion", response_model=DoctorConclusionResponse | None)
+def get_doctor_conclusion(
+    ecg_id: str,
+    current_user: Annotated[UserEntity, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DoctorConclusionResponse | None:
+    record = db.get(EcgRecordEntity, ecg_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ECG record not found",
+        )
+
+    ensure_ecg_access(record, current_user, db)
+
+    conclusion = db.get(DoctorConclusionEntity, ecg_id)
+    if conclusion is None:
+        return None
+
+    return conclusion_to_response(conclusion)
+
+
+@app.put("/ecg/{ecg_id}/conclusion", response_model=DoctorConclusionResponse)
+def save_doctor_conclusion(
+    ecg_id: str,
+    request: DoctorConclusionRequest,
+    current_user: Annotated[UserEntity, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DoctorConclusionResponse:
+    require_role(current_user, UserRole.DOCTOR)
+
+    record = db.get(EcgRecordEntity, ecg_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ECG record not found",
+        )
+
+    ensure_ecg_access(record, current_user, db)
+
+    now = utc_now()
+    text = request.text.strip()
+    conclusion = db.get(DoctorConclusionEntity, ecg_id)
+
+    if conclusion is None:
+        conclusion = DoctorConclusionEntity(
+            ecg_id=ecg_id,
+            doctor_user_id=current_user.id,
+            text=text,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(conclusion)
+    else:
+        conclusion.doctor_user_id = current_user.id
+        conclusion.text = text
+        conclusion.updated_at = now
+
+    db.commit()
+    db.refresh(conclusion)
+
+    return conclusion_to_response(conclusion)
 
 @app.get("/ecg/{ecg_id}/analysis")
 def get_ecg_analysis(
