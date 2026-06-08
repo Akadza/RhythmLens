@@ -19,6 +19,7 @@ import androidx.navigation.compose.rememberNavController
 import com.rimuru.android.rhythmlens.R
 import com.rimuru.android.rhythmlens.ui.app.features.auth.AuthRoute
 import com.rimuru.android.rhythmlens.ui.app.features.ecgdetail.EcgDetailRoute
+import com.rimuru.android.rhythmlens.ui.app.features.syntheticimage.SyntheticImageRoute
 import com.rimuru.android.rhythmlens.ui.screens.MainScreen
 
 @Composable
@@ -89,8 +90,10 @@ fun AppNavHost(
         }
 
         composable<SyntheticImageDestination> {
-            RoutePlaceholderScreen(
-                title = stringResource(R.string.screen_synthetic_ecg)
+            SyntheticImageRoute(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
 
