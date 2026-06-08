@@ -236,6 +236,7 @@ class ComparisonViewModel @Inject constructor(
         } else {
             "Основной класс анализа изменился: $basePrediction → $comparedPrediction."
         }
+        val peakSummary = buildPeakSummary(leads)
 
         val points = buildList {
             averageDifference?.let { value ->
@@ -244,6 +245,7 @@ class ComparisonViewModel @Inject constructor(
             maxDifferenceLead?.let { (leadName, metric) ->
                 add("Наибольшее расхождение отмечено в отведении $leadName: ${metric.meanAbsDiffMv.formatMv()} мВ, коэффициент сходства ${metric.correlation.formatCorrelation()}.")
             }
+            peakSummary?.let { add(it) }
             add(predictionText)
             add("Автоматическое сравнение является ориентировочным и не заменяет врачебную оценку формы комплексов, интервалов и сегмента ST.")
         }
@@ -302,12 +304,67 @@ class ComparisonViewModel @Inject constructor(
         )
     }
 
+    private fun buildPeakSummary(leads: List<ComparisonLeadUi>): String? {
+        val lead = leads.firstOrNull { item -> item.name == EcgLead.II.name } ?: return null
+        val basePeaks = estimatePeaks(lead.basePoints) ?: return null
+        val comparedPeaks = estimatePeaks(lead.comparedPoints) ?: return null
+        val rrDiffMs = abs(basePeaks.meanRrMs - comparedPeaks.meanRrMs)
+        return "По ориентировочным R-пикам в II отведении: ${basePeaks.count} и ${comparedPeaks.count} пиков; средний RR отличается примерно на ${rrDiffMs.toInt()} мс."
+    }
+
+    private fun estimatePeaks(points: List<EcgPoint>): PeakEstimate? {
+        if (points.size < MIN_POINTS_FOR_COMPARISON) {
+            return null
+        }
+
+        val values = points.map { point -> point.voltageMv }
+        val baseline = median(values)
+        val centered = values.map { value -> value - baseline }
+        val threshold = max(0.25, percentile(centered.map { value -> abs(value) }, 0.95) * 0.6)
+        val peaks = mutableListOf<Long>()
+        var lastPeakTime = Long.MIN_VALUE / 2
+
+        for (index in 1 until centered.lastIndex) {
+            val value = centered[index]
+            val time = points[index].timeMs
+            val isLocalPeak = value > threshold && value >= centered[index - 1] && value >= centered[index + 1]
+            if (isLocalPeak && time - lastPeakTime >= MIN_RR_DISTANCE_MS) {
+                peaks.add(time)
+                lastPeakTime = time
+            }
+        }
+
+        if (peaks.size < 2) {
+            return null
+        }
+
+        val rrIntervals = peaks.zipWithNext { first, second -> (second - first).toDouble() }
+        return PeakEstimate(
+            count = peaks.size,
+            meanRrMs = rrIntervals.average()
+        )
+    }
+
     private fun EcgPrediction?.toReadablePrediction(): String {
         return this?.label ?: "нет данных"
     }
 
     private fun List<Double>.averageOrNull(): Double? {
         return if (isEmpty()) null else average()
+    }
+
+    private fun median(values: List<Double>): Double {
+        val sorted = values.sorted()
+        return sorted[sorted.size / 2]
+    }
+
+    private fun percentile(values: List<Double>, fraction: Double): Double {
+        if (values.isEmpty()) {
+            return 0.0
+        }
+        val sorted = values.sorted()
+        val index = ((sorted.size - 1) * fraction).toInt().coerceIn(0, sorted.lastIndex)
+        return sorted[index]
     }
 
     private fun Double.formatMv(): String {
@@ -336,9 +393,15 @@ class ComparisonViewModel @Inject constructor(
         val correlation: Double
     )
 
+    private data class PeakEstimate(
+        val count: Int,
+        val meanRrMs: Double
+    )
+
     private companion object {
         const val MIN_POINTS_FOR_COMPARISON = 20
         const val MAX_COMPARISON_POINTS = 1000
+        const val MIN_RR_DISTANCE_MS = 250L
         val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     }
 }
