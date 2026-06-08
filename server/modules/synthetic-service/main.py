@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 from fastapi import FastAPI, HTTPException
+from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel
 
 app = FastAPI(title="RhythmLens Synthetic ECG Service")
@@ -19,6 +20,7 @@ class SyntheticRequest(BaseModel):
     metadata_path: str | None = None
     layout: str | None = None
     output_dir: str | None = None
+    patient_name: str | None = None
     seed: int = 42
 
 
@@ -41,8 +43,7 @@ LEADS = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V
 RHYTHM_LEAD = "II"
 TOTAL_SECONDS = 10.0
 KIT_GENERATOR_DIR = Path("/opt/ecg-image-kit/codes/ecg-image-generator")
-TARGET_DISPLAY_MV = 0.85
-MAX_DISPLAY_MV = 2.4
+MAX_PHYSIOLOGICAL_MV = 4.0
 
 
 @app.get("/health")
@@ -80,6 +81,7 @@ def generate_impl(request: SyntheticRequest) -> SyntheticResponse:
 
     signal_mv, sampling_rate = build_signal_for_rendering(completed_csv_path, digitized_csv_path)
     render_with_ecg_image_kit(signal_mv, sampling_rate, output_dir, output_path, request.seed, layout)
+    add_patient_header(output_path, request.patient_name, layout)
 
     return SyntheticResponse(image_path=str(output_path), layout=layout, rhythm_lead=RHYTHM_LEAD)
 
@@ -158,23 +160,46 @@ def build_signal_for_rendering(completed_csv_path: Path, digitized_csv_path: Pat
                     digitized_value = digitized_values[lead][source_index]
                     if digitized_value is not None:
                         merged_values[lead][index] = digitized_value
-    return normalize_signal_to_mv(merged_values), sampling_rate
+    return convert_signal_to_mv_preserving_ratios(merged_values), sampling_rate
 
 
-def normalize_signal_to_mv(values_by_lead):
-    normalized = {}
+def convert_signal_to_mv_preserving_ratios(values_by_lead):
+    centered_by_lead: dict[str, list[float | None]] = {}
+    all_centered_values: list[float] = []
+
     for lead, values in values_by_lead.items():
         present = [value for value in values if value is not None]
         if not present:
-            normalized[lead] = [0.0 for _ in values]
+            centered_by_lead[lead] = [None for _ in values]
             continue
-        sorted_values = sorted(present)
-        center = sorted_values[len(sorted_values) // 2]
-        deviations = sorted(abs(value - center) for value in present)
-        robust_amplitude = percentile(deviations, 0.98) or 1.0
-        scale = max(robust_amplitude / TARGET_DISPLAY_MV, 1e-9)
-        normalized[lead] = [0.0 if value is None else clamp((value - center) / scale, -MAX_DISPLAY_MV, MAX_DISPLAY_MV) for value in values]
-    return normalized
+
+        center = median(present)
+        centered = [None if value is None else value - center for value in values]
+        centered_by_lead[lead] = centered
+        all_centered_values.extend(value for value in centered if value is not None)
+
+    unit_scale = infer_unit_scale_to_mv(all_centered_values)
+    converted: dict[str, list[float]] = {}
+
+    for lead, values in centered_by_lead.items():
+        converted[lead] = [
+            0.0 if value is None else clamp(value / unit_scale, -MAX_PHYSIOLOGICAL_MV, MAX_PHYSIOLOGICAL_MV)
+            for value in values
+        ]
+
+    return converted
+
+
+def infer_unit_scale_to_mv(values: list[float]) -> float:
+    if not values:
+        return 1.0
+
+    amplitudes = sorted(abs(value) for value in values)
+    robust_amplitude = percentile(amplitudes, 0.98)
+
+    if robust_amplitude > 20.0:
+        return 1000.0
+    return 1.0
 
 
 def render_with_ecg_image_kit(signal_mv, sampling_rate: int, output_dir: Path, output_path: Path, seed: int, layout: str):
@@ -244,10 +269,43 @@ def render_with_ecg_image_kit(signal_mv, sampling_rate: int, output_dir: Path, o
             sys.path.remove(str(KIT_GENERATOR_DIR))
 
 
+def add_patient_header(image_path: Path, patient_name: str | None, layout: str) -> None:
+    name = (patient_name or "").strip()
+    if not name:
+        return
+
+    image = Image.open(image_path).convert("RGB")
+    header_height = max(56, image.height // 26)
+    result = Image.new("RGB", (image.width, image.height + header_height), (255, 252, 250))
+    result.paste(image, (0, header_height))
+
+    draw = ImageDraw.Draw(result)
+    title_font = resolve_text_font(max(18, image.width // 95))
+    meta_font = resolve_text_font(max(14, image.width // 130))
+    left = max(24, image.width // 45)
+    draw.text((left, 10), f"Пациент: {name}", fill=(35, 35, 35), font=title_font)
+    draw.text((left, 34), f"RhythmLens · {layout} · 25 мм/с · 10 мм/мВ", fill=(70, 70, 70), font=meta_font)
+    result.save(image_path)
+
+
+def resolve_text_font(size: int):
+    try:
+        import matplotlib.font_manager as font_manager
+        font_path = font_manager.findfont("DejaVu Sans")
+        return ImageFont.truetype(font_path, size=size)
+    except Exception:
+        return ImageFont.load_default()
+
+
 def resolve_font_path() -> Path:
     fonts_dir = KIT_GENERATOR_DIR / "Fonts"
     fonts = sorted(fonts_dir.glob("*.ttf")) if fonts_dir.exists() else []
     return fonts[0] if fonts else Path("Fonts/Times_New_Roman.ttf")
+
+
+def median(values: list[float]) -> float:
+    sorted_values = sorted(values)
+    return sorted_values[len(sorted_values) // 2]
 
 
 def percentile(values: list[float], fraction: float) -> float:
