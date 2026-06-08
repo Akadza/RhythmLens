@@ -109,6 +109,17 @@ fun HomeScreen(
                 )
             }
 
+            if (state.errorMessage != null) {
+                item {
+                    Text(
+                        text = state.errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             item {
                 LastEcgCard(
                     record = state.lastRecord,
