@@ -55,6 +55,10 @@ class PatientRepositoryImpl @Inject constructor(
         return patient
     }
 
+    override suspend fun getMyInviteCode(): String {
+        return patientApi.getMyInviteCode().inviteCode
+    }
+
     override suspend fun getPatientByInviteCode(inviteCode: String): Patient? {
         return patientDao.getByInviteCode(inviteCode)?.toDomain()
     }
