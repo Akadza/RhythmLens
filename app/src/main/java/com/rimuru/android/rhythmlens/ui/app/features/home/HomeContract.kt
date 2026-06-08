@@ -1,14 +1,18 @@
 package com.rimuru.android.rhythmlens.ui.app.features.home
 
+import com.rimuru.android.rhythmlens.domain.model.UserRole
+
 data class HomeUiState(
     val userName: String = "",
+    val userRole: UserRole? = null,
     val selectedPatientId: String? = null,
     val selectedPatientName: String? = null,
     val totalRecords: Int = 0,
     val linkedDoctorCount: Int = 0,
     val lastRecord: LastEcgUi? = null,
     val isAddEcgSheetVisible: Boolean = false,
-    val isCreatingTestEcg: Boolean = false
+    val isCreatingTestEcg: Boolean = false,
+    val errorMessage: String? = null
 )
 
 data class LastEcgUi(
