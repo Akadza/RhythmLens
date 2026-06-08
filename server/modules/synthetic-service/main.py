@@ -3,6 +3,7 @@ import math
 import os
 import shutil
 import sys
+import traceback
 from pathlib import Path
 
 import numpy as np
@@ -51,6 +52,16 @@ def health():
 
 @app.post("/generate", response_model=SyntheticResponse)
 def generate(request: SyntheticRequest):
+    try:
+        return generate_impl(request)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"ECG-Image-Kit generation failed: {type(exc).__name__}: {exc}") from exc
+
+
+def generate_impl(request: SyntheticRequest) -> SyntheticResponse:
     completed_csv_path = Path(request.csv_path or "")
     if not completed_csv_path.exists():
         raise HTTPException(status_code=404, detail="Completed ECG CSV file not found")
@@ -209,7 +220,7 @@ def render_with_ecg_image_kit(signal_mv, sampling_rate: int, output_dir: Path, o
             configs=read_config_file(str(KIT_GENERATOR_DIR / "config.yaml")),
             mask_unplotted_samples=False,
             start_index=0,
-            store_configs=2,
+            store_configs=0,
             store_text_bbox=False,
             resolution=200,
             units="inches",
