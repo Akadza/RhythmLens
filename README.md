@@ -15,6 +15,10 @@ paper ECG image → mobile upload → server processing → digital 12-lead ECG 
 ## Screenshots
 
 <p align="center">
+  <img src="docs/images/workflow.png" alt="RhythmLens workflow" width="850" />
+</p>
+
+<p align="center">
   <img src="docs/images/Ai-analysis.png" alt="RhythmLens AI analysis and doctor conclusion screens" width="850" />
 </p>
 
