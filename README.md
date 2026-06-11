@@ -12,6 +12,18 @@ paper ECG image → mobile upload → server processing → digital 12-lead ECG 
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/readme-workflow.svg" alt="How RhythmLens works" width="760" />
+</p>
+
+<p align="center">
+  <img src="docs/images/readme-screenshots-overview.svg" alt="RhythmLens feature overview" width="760" />
+</p>
+
+---
+
 ## Key Features
 
 ### Android application
