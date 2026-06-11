@@ -15,11 +15,19 @@ paper ECG image → mobile upload → server processing → digital 12-lead ECG 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/readme-workflow.svg" alt="How RhythmLens works" width="760" />
+  <img src="docs/images/Ai-analysis.png" alt="RhythmLens AI analysis and doctor conclusion screens" width="850" />
 </p>
 
 <p align="center">
-  <img src="docs/images/readme-screenshots-overview.svg" alt="RhythmLens feature overview" width="760" />
+  <img src="docs/images/digitization-restoration-comparison.png" alt="ECG digitization, restoration and comparison" width="850" />
+</p>
+
+<p align="center">
+  <img src="docs/images/ecg_synth.png" alt="Synthetic ECG generation" width="850" />
+</p>
+
+<p align="center">
+  <img src="docs/images/patient-history-profile.png" alt="Patient history and profile screens" width="850" />
 </p>
 
 ---
