@@ -111,7 +111,7 @@ RhythmLens integrates and builds upon separate ECG processing components:
 
 - [Open-ECG-Digitizer](https://github.com/Akadza/Open-ECG-Digitizer) — paper ECG image digitization.
 - [ECG-completion](https://github.com/Akadza/ECG-completion) — restoration and completion of ECG signals.
-- [ECGify / ECG Founder](https://github.com/Akadza/ECGify) — earlier ECG application work and project foundation.
+- [ECGFounder](https://github.com/PKUDigitalHealth/ECGFounder) — foundation model for ECG representation learning and automated ECG analysis.
 
 ---
 
